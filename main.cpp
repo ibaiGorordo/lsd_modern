@@ -7,6 +7,8 @@
 using namespace std::chrono;
 using Line = std::pair<cv::Point2d, cv::Point2d>;
 
+cv::Ptr<cv::LineSegmentDetector> lsd_cv;
+
 cv::Mat draw_lines(cv::Mat& gray_img,
                 const std::vector<Line>& lines,
                 const std::string& title="lines")
@@ -25,6 +27,25 @@ cv::Mat draw_lines(cv::Mat& gray_img,
     cv::namedWindow(title, cv::WINDOW_NORMAL);
     cv::imshow(title, color_img);
     return color_img;
+}
+
+cv::Mat test(cv::Mat& gray_img,
+             const std::function<std::vector<Line>(cv::Mat&)>& lsd,
+             const std::string& func_name,
+             int num_tests)
+{
+    auto start = high_resolution_clock::now();
+    std::vector<Line> lines;
+    for (int i = 0; i < num_tests; ++i)
+    {
+        lines = lsd(gray_img);
+    }
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end - start);
+    auto mean_time = duration.count() / static_cast<long>(num_tests);
+    printf("%s: %lld ms per call\n", func_name.c_str(), mean_time);
+
+    return draw_lines(gray_img, lines, func_name);
 }
 
 std::vector<Line> pytlsd(cv::Mat& gray_img)
@@ -54,9 +75,8 @@ std::vector<Line> pytlsd(cv::Mat& gray_img)
 
 std::vector<Line> opencv_lsd(cv::Mat& gray_img)
 {
-    cv::Ptr<cv::LineSegmentDetector> lsd = cv::createLineSegmentDetector();
     std::vector<cv::Vec4f> lines_cv;
-    lsd->detect(gray_img, lines_cv);
+    lsd_cv->detect(gray_img, lines_cv);
 
     std::vector<Line> lines;
     for (const auto& line : lines_cv)
@@ -68,24 +88,6 @@ std::vector<Line> opencv_lsd(cv::Mat& gray_img)
     return lines;
 }
 
-cv::Mat test(cv::Mat& gray_img,
-                       const std::function<std::vector<Line>(cv::Mat&)>& lsd,
-                       const std::string& func_name,
-                       int num_tests)
-{
-    auto start = high_resolution_clock::now();
-    std::vector<Line> lines;
-    for (int i = 0; i < num_tests; ++i)
-    {
-        lines = lsd(gray_img);
-    }
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(end - start);
-    auto mean_time = duration.count() / static_cast<long>(num_tests);
-    printf("%s: %lld ms per call\n", func_name.c_str(), mean_time);
-
-    return draw_lines(gray_img, lines, func_name);
-}
 
 int main(int argc, char **argv){
 
@@ -93,6 +95,7 @@ int main(int argc, char **argv){
                               cv::IMREAD_GRAYSCALE);
 
     auto num_tests = 10;
+    lsd_cv = cv::createLineSegmentDetector();
     auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
     auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
 
