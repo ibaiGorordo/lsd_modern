@@ -11,7 +11,7 @@
 ![Gaussian blur](https://github.com/ibaiGorordo/lsd_modern/blob/main/doc/img/gaussian_blur_diff.png)
 
 - **pytlsd C++** (left diff with Opencv): 60 ms per call
-- **Fast Gaussian blue** (right diff with Opencv): 41 ms per call
+- **Fast Gaussian blur** (right diff with Opencv): 41 ms per call
 - **Opencv C++**: 6 ms per call
 
 # Ref:
