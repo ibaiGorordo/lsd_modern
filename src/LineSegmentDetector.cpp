@@ -14,9 +14,11 @@ LineSegmentDetector::LineSegmentDetector(double scale, double sigma_scale, doubl
     this->density_th = density_th;
     this->n_bins = n_bins;
 
-    prec = std::numbers::pi * ang_th / 180.0;
-    p = ang_th / 180.0;
-    rho = quant / std::sin(prec);
+    this->prec = std::numbers::pi * ang_th / 180.0;
+    this->p = ang_th / 180.0;
+    this->rho = quant / std::sin(prec);
+
+    this->gaussian_downsampler = GaussianDownsampler(scale, sigma_scale);
 }
 
 std::vector<Segment> LineSegmentDetector::detect(double *gray_img, int width, int height) {

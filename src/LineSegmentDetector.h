@@ -8,6 +8,7 @@
 #include "vector"
 #include <numbers>
 #include "Segment.h"
+#include "GaussianDownsampler.h"
 #include <cmath>
 
 class LineSegmentDetector {
@@ -39,6 +40,7 @@ class LineSegmentDetector {
         double rho;
 
         double *smoothed_img;
+        GaussianDownsampler gaussian_downsampler;
 
 
 };

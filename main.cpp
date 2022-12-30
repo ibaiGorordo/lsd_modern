@@ -113,7 +113,7 @@ std::vector<Line> modern_lsd(cv::Mat& gray_img)
 }
 
 
-int main(int argc, char **argv){
+int main(){
 
     cv::Mat gray = cv::imread("assets/test.jpg",
                               cv::IMREAD_GRAYSCALE);
