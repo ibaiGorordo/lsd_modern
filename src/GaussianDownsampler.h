@@ -10,16 +10,13 @@
 
 class GaussianDownsampler {
 public:
-    explicit GaussianDownsampler(double scale=0.8, double sigma_scale=0.6);
-    double *downsample(double *img);
-
-    static std::vector<std::vector<double>> calculate_kernel(double scale, double sigma_scale);
+    explicit GaussianDownsampler(float scale=0.8, float sigma_scale=0.6);
+    void downsample(float *in_img, float *out_img, int width, int height);
 
 private:
-    double scale;
-    double sigma_scale;
-    std::vector<std::vector<double>> kernel;
-    double *smoothed_img{};
+    float scale;
+    float sigma_scale;
+    float sigma;
 
 private:
 
