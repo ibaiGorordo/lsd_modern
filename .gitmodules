@@ -1,0 +1,3 @@
+[submodule "pytlsd"]
+	path = pytlsd
+	url = https://github.com/rpautrat/pytlsd.git
