@@ -30,3 +30,18 @@
 *.exe
 *.out
 *.app
+
+# cmake build files
+**/cmake/build/
+
+# Visual Studio Code artifacts
+.cache/*
+.vscode/*
+.history/
+
+# Clion artifacts
+cmake-build-debug/
+cmake-build-release/
+
+# IDE specific folder for JetBrains IDEs
+.idea/
