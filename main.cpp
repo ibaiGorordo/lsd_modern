@@ -12,7 +12,8 @@ cv::Ptr<cv::LineSegmentDetector> lsd_cv;
 
 cv::Mat draw_lines(cv::Mat& gray_img,
                 const std::vector<Line>& lines,
-                const std::string& title="lines")
+                const std::string& title="lines",
+                bool show=false)
 {
     cv::Mat color_img;
     cv::cvtColor(gray_img, color_img, cv::COLOR_GRAY2BGR);
@@ -25,8 +26,11 @@ cv::Mat draw_lines(cv::Mat& gray_img,
                  2);
     }
 
-    cv::namedWindow(title, cv::WINDOW_NORMAL);
-    cv::imshow(title, color_img);
+    if(show) 
+    {
+        cv::namedWindow(title, cv::WINDOW_NORMAL);
+        cv::imshow(title, color_img);
+    }
     return color_img;
 }
 
