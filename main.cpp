@@ -27,7 +27,7 @@ cv::Mat draw_lines(cv::Mat& gray_img,
     return color_img;
 }
 
-std::vector<Line> old_lsd(cv::Mat& gray_img)
+std::vector<Line> pytlsd(cv::Mat& gray_img)
 {
     cv::Mat img_flt;
     gray_img.convertTo(img_flt, CV_64FC1);
@@ -93,7 +93,7 @@ int main(int argc, char **argv){
                               cv::IMREAD_GRAYSCALE);
 
     auto num_tests = 10;
-    auto line_img1 = test(gray, old_lsd, "old_lsd", num_tests);
+    auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
     auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
 
     // Stack images horizontally
