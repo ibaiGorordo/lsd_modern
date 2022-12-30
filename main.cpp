@@ -1,5 +1,6 @@
 #include <iostream>
 #include "chrono"
+
 #include <opencv2/opencv.hpp>
 
 #include "lsd.h"
@@ -9,6 +10,7 @@ using namespace std::chrono;
 using Line = std::pair<cv::Point2d, cv::Point2d>;
 
 cv::Ptr<cv::LineSegmentDetector> lsd_cv;
+std::unique_ptr<LineSegmentDetector> lsd_modern;
 
 cv::Mat draw_lines(cv::Mat& gray_img,
                 const std::vector<Line>& lines,
@@ -26,7 +28,7 @@ cv::Mat draw_lines(cv::Mat& gray_img,
                  2);
     }
 
-    if(show) 
+    if(show)
     {
         cv::namedWindow(title, cv::WINDOW_NORMAL);
         cv::imshow(title, color_img);
@@ -95,9 +97,18 @@ std::vector<Line> opencv_lsd(cv::Mat& gray_img)
 
 std::vector<Line> modern_lsd(cv::Mat& gray_img)
 {
-    auto lsd = LineSegmentDetector();
+    cv::Mat img_flt;
+    gray_img.convertTo(img_flt, CV_64FC1);
+
+    auto *imagePtr = reinterpret_cast<double *>(img_flt.data);
+    auto segments = lsd_modern->detect(imagePtr, gray_img.cols, gray_img.rows);
 
     std::vector<Line> lines;
+    for (const auto& segment : segments)
+    {
+        lines.emplace_back(cv::Point2d(segment.x1, segment.y1),
+                           cv::Point2d(segment.x2, segment.y2));
+    }
     return lines;
 }
 
@@ -109,6 +120,7 @@ int main(int argc, char **argv){
 
     auto num_tests = 10;
     lsd_cv = cv::createLineSegmentDetector();
+    lsd_modern = std::make_unique<LineSegmentDetector>();
     auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
     auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
     auto line_img3 = test(gray, modern_lsd, "modern_lsd", num_tests);

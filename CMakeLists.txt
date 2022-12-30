@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(test VERSION 0.1.0)
 
+set(CMAKE_CXX_STANDARD 20)
+
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
@@ -9,7 +11,7 @@ add_executable(test_lsd
                 src/LineSegmentDetector.cpp
                 src/LineSegmentDetector.h
                 pytlsd/src/lsd.cpp
-                pytlsd/src/lsd.h)
+                pytlsd/src/lsd.h src/Segment.h)
 
 target_link_libraries( test_lsd ${OpenCV_LIBS} )
 target_include_directories(test_lsd PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
