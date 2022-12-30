@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "lsd.h"
+#include "LineSegmentDetector.h"
 
 using namespace std::chrono;
 using Line = std::pair<cv::Point2d, cv::Point2d>;
@@ -88,6 +89,14 @@ std::vector<Line> opencv_lsd(cv::Mat& gray_img)
     return lines;
 }
 
+std::vector<Line> modern_lsd(cv::Mat& gray_img)
+{
+    auto lsd = LineSegmentDetector();
+
+    std::vector<Line> lines;
+    return lines;
+}
+
 
 int main(int argc, char **argv){
 
@@ -98,6 +107,7 @@ int main(int argc, char **argv){
     lsd_cv = cv::createLineSegmentDetector();
     auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
     auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
+    auto line_img3 = test(gray, modern_lsd, "modern_lsd", num_tests);
 
     // Stack images horizontally
     cv::Mat line_img;
