@@ -19,5 +19,6 @@
 - Original C code: [lsd c code](https://github.com/theWorldCreator/LSD)
 - pytlsd repo: [pytlsd](https://github.com/rpautrat/pytlsd)
 - Fast Gaussian blur: [Fast Gaussian blur](http://blog.ivank.net/fastest-gaussian-blur.html)
+- Separable Convolution: [Separable Convolution](https://github.com/chaowang15/fast-image-convolution-cpp)
 
 

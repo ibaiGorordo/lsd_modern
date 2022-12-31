@@ -121,8 +121,7 @@ int main() {
     gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
     auto sepconv_gaussian_img = test(sepconv_gaussian_blur,
                                   "sepconv_gaussian_blur",
-                                  num_test,
-                                  true);
+                                  num_test);
 
     auto pytlsd_gaussian_img = test(pytlsd_gaussian_blur,
                                     "pytlsd_gaussian_blur",
