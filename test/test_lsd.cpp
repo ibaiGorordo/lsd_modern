@@ -128,6 +128,6 @@ int main(){
     // Stack images horizontally
     cv::Mat line_img;
     cv::hconcat(line_img1, line_img2, line_img);
-    cv::imwrite("../doc/img/lines.jpg", line_img);
+    cv::imwrite("../../doc/img/lines.jpg", line_img);
     cv::waitKey(0);
 }

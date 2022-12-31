@@ -20,7 +20,7 @@ cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_blur,
     cv::Mat out_img;
     for (int i = 0; i < num_tests; ++i)
     {
-        cv::Mat gray_img = cv::imread("../assets/test.jpg",
+        cv::Mat gray_img = cv::imread("assets/test.jpg",
                                   cv::IMREAD_GRAYSCALE);
         out_img = gaussian_blur(gray_img);
     }
