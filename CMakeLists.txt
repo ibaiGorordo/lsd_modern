@@ -10,7 +10,8 @@ set(lib_name "lsd_modern")
 add_library(${lib_name}
             src/LineSegmentDetector.cpp
             src/GaussianDownsampler.cpp
-            src/separable_conv2d.cpp)
+            src/separable_conv2d.cpp
+            src/bilinear_resize.cpp)
 
 target_include_directories(${lib_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 

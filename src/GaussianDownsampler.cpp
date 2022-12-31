@@ -5,6 +5,7 @@
 #include "algorithm"
 #include "GaussianDownsampler.h"
 #include "separable_conv2d.h"
+#include "bilinear_resize.h"
 
 using Kernel = std::vector<float>;
 
@@ -15,11 +16,22 @@ GaussianDownsampler::GaussianDownsampler(float scale,
     this->kernel = get_gaussian_kernel(sigma);
 }
 
-void GaussianDownsampler::downsample(const unsigned  char *in_img,
-                                     unsigned  char *out_img,
-                                     int width, int height) {
+void GaussianDownsampler::blur(const unsigned  char *in_img,
+                               unsigned  char *out_img,
+                               int width, int height) {
     separable_conv2d(in_img, out_img, width, height, kernel);
 }
+
+void GaussianDownsampler::blur_downsample(const unsigned char *in_img, unsigned char *out_img, int width, int height) {
+    create_smoothed_img(width, height);
+    separable_conv2d(in_img, smoothed_img, width, height, kernel);
+
+    auto new_width = static_cast<int>(std::ceil(width * scale));
+    auto new_height = static_cast<int>(std::ceil(height * scale));
+    bilinear_resize(smoothed_img, width, height, out_img, new_width, new_height);
+}
+
+
 
 std::vector<float> GaussianDownsampler::get_gaussian_kernel(float sigma) {
     const double sprec = 3;
@@ -37,6 +49,17 @@ std::vector<float> GaussianDownsampler::get_gaussian_kernel(float sigma) {
         v /= sum;
 
     return kernel;
+}
+
+void GaussianDownsampler::create_smoothed_img(int width, int height) {
+    if(smoothed_img != nullptr)
+    {
+        if(smoothed_img[0] == width && smoothed_img[1] == height)
+            return;
+        delete[] smoothed_img;
+    }
+
+    smoothed_img = new unsigned char[width * height];
 }
 
 
