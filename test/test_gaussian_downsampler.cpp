@@ -113,7 +113,7 @@ cv::Mat sepconv_gaussian_blur(const cv::Mat& gray) {
 
 
 int main() {
-    auto num_test = 100;
+    auto num_test = 10;
     auto opencv_gaussian_img = test(opencv_gaussian_blur,
                                     "opencv_gaussian_blur",
                                     num_test);
@@ -121,7 +121,8 @@ int main() {
     gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
     auto sepconv_gaussian_img = test(sepconv_gaussian_blur,
                                   "sepconv_gaussian_blur",
-                                  num_test);
+                                  num_test,
+                                  true);
 
     auto pytlsd_gaussian_img = test(pytlsd_gaussian_blur,
                                     "pytlsd_gaussian_blur",

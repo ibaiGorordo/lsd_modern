@@ -29,7 +29,7 @@ std::vector<float> GaussianDownsampler::get_gaussian_kernel(float sigma) {
     Kernel kernel(kernel_size);
     auto sum = 0.0;
     for (int i = 0; i < kernel_size; ++i) {
-        kernel[i] = std::exp(-0.5 * std::pow((i - h) / sigma, 2));
+        kernel[i] = static_cast<float>(std::exp(-0.5 * std::pow((i - h) / sigma, 2)));
         sum += kernel[i];
     }
 
