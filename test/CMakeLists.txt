@@ -1,7 +1,7 @@
 add_executable(test_gaussian_down
                 test_gaussian_downsampler.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/../src/GaussianDownsampler.cpp
-                ${CMAKE_CURRENT_SOURCE_DIR}/../src/fast_gaussian_blur.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/../src/separable_conv2d.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/../pytlsd/src/lsd.cpp)
 
 target_link_libraries(test_gaussian_down PRIVATE ${OpenCV_LIBS})

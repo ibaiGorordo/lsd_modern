@@ -27,7 +27,7 @@ cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_blur,
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<microseconds>(end - start);
     auto mean_time = duration.count() / static_cast<long>(num_tests);
-    printf("%s: %lld microseconds per call\n", func_name.c_str(), mean_time);
+    printf("%s: %lld ms per call\n", func_name.c_str(), mean_time);
 
     if (show)
     {
@@ -76,25 +76,6 @@ cv::Mat opencv_gaussian_blur(const cv::Mat& gray) {
     return opencv_gaussian_img;
 }
 
-
-cv::Mat fast_gaussian_blur(const cv::Mat& gray) {
-    cv::Mat img_flt;
-    gray.convertTo(img_flt, CV_32F);
-    auto *imagePtr = reinterpret_cast<float *>(img_flt.data);
-
-    cv::Mat out_img;
-    out_img = cv::Mat::zeros(gray.size(), CV_32F);
-    auto *outPtr = reinterpret_cast<float *>(out_img.data);
-
-    gaussian_downsampler->downsample(imagePtr,
-                                     outPtr,
-                                     gray.cols, gray.rows);
-
-    cv::Mat out_img_8u;
-    out_img.convertTo(out_img_8u, CV_8U);
-    return out_img_8u;
-}
-
 cv::Mat pytlsd_gaussian_blur(const cv::Mat& gray) {
 
     cv::Mat img_flt;
@@ -108,7 +89,7 @@ cv::Mat pytlsd_gaussian_blur(const cv::Mat& gray) {
     image->data = imagePtr;
     image->xsize = gray.cols;
     image->ysize = gray.rows;
-    auto out_image_double = gaussian_sampler(image, 1., 0.6f/0.8f);
+    auto out_image_double = gaussian_sampler(image, 1.f, 0.6f/0.8f);
     out_img.data = reinterpret_cast<uchar *>(out_image_double->data);
 
     cv::Mat out_img_8u;
@@ -118,16 +99,28 @@ cv::Mat pytlsd_gaussian_blur(const cv::Mat& gray) {
     return out_img_8u;
 }
 
+cv::Mat sepconv_gaussian_blur(const cv::Mat& gray) {
+    auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
+    cv::Mat out_img;
+    out_img = cv::Mat::zeros(gray.size(), CV_8U);
+    auto *outPtr = reinterpret_cast<unsigned char *>(out_img.data);
+
+    gaussian_downsampler->downsample(imagePtr,
+                                     outPtr,
+                                     gray.cols, gray.rows);
+    return out_img;
+}
+
 
 int main() {
-    auto num_test = 10;
+    auto num_test = 100;
     auto opencv_gaussian_img = test(opencv_gaussian_blur,
                                     "opencv_gaussian_blur",
                                     num_test);
 
     gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
-    auto fast_gaussian_img = test(fast_gaussian_blur,
-                                  "fast_gaussian_blur",
+    auto sepconv_gaussian_img = test(sepconv_gaussian_blur,
+                                  "sepconv_gaussian_blur",
                                   num_test);
 
     auto pytlsd_gaussian_img = test(pytlsd_gaussian_blur,
@@ -139,9 +132,9 @@ int main() {
                                  "Pytlsd Vs Opencv",
                                  true);
 
-    auto diff2 = draw_image_diff(fast_gaussian_img,
+    auto diff2 = draw_image_diff(sepconv_gaussian_img,
                                 opencv_gaussian_img,
-                                "Fast Vs Opencv",
+                                "SepConv Vs Opencv",
                                 true);
 
     cv::Mat combined_diff;
