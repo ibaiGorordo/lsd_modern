@@ -2,17 +2,19 @@
  C++ code to try to modernize the original Line Segment Detect code
 
 ## Line Detection Comparison
+Image comparison between pytlsd C++ (left) and Opencv C++ (right).
 ![LSD](https://github.com/ibaiGorordo/lsd_modern/blob/main/doc/img/lines.jpg)
 
-- **pytlsd C++** (left): 214 ms per call
-- **Opencv C++** (right): 48 ms per call
 
-## Gaussian Blur Comparison
-![Gaussian blur](https://github.com/ibaiGorordo/lsd_modern/blob/main/doc/img/gaussian_blur_diff.png)
+Table with the comparison (ms) of the different parts of the code:
 
-- **pytlsd C++** (left diff with Opencv): 47 ms per call
-- **Separable Convolution Gaussian blur** (right diff with Opencv): 15 ms per call
-- **Opencv C++**: 6 ms per call
+|                     | OpenCV (C++) | pytlsd (C++) | lsd_modern |
+|---------------------|--------------|--------------|------------|
+| Gaussian Blur       | 6            | 47           | 15         |
+| Gaussian Downsample | 6            | 39           | 16         |
+| Total               | 48           | 214          |            |
+
+For a more detailed comparison check the [COMPARISONS.md](https://github.com/ibaiGorordo/lsd_modern/blob/main/COMPARISONS.md) file.
 
 # Ref:
 - LSD paper: [LSD: A Line Segment Detector](https://www.ipol.im/pub/art/2012/gjmr-lsd/)
