@@ -17,18 +17,26 @@ cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_blur,
              int num_tests,
              bool show=false)
 {
-    auto start = high_resolution_clock::now();
     cv::Mat out_img;
+    cv::Mat gray_img = cv::imread("assets/bathroom.jpg",
+                                  cv::IMREAD_GRAYSCALE);
+
+    cv::Mat noise_img(gray_img.size(), gray_img.type());
+
+    long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
     {
-        cv::Mat gray_img = cv::imread("assets/test.jpg",
-                                      cv::IMREAD_GRAYSCALE);
+        // Do a pass with random noise to avoid any caching effects
+        cv::randn(noise_img, 125, 50);
+        out_img = gaussian_blur(noise_img);
+
+        auto start = high_resolution_clock::now();
         out_img = gaussian_blur(gray_img);
+        auto end = high_resolution_clock::now();
+        total_time += duration_cast<microseconds>(end - start).count();
     }
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(end - start);
-    auto mean_time = duration.count() / static_cast<long>(num_tests);
-    printf("%s: %lld ms per call\n", func_name.c_str(), mean_time);
+    auto mean_time = total_time / static_cast<long>(num_tests);
+    printf("%s: %lld microseconds per call\n", func_name.c_str(), mean_time);
 
     if (show)
     {

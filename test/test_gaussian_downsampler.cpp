@@ -11,23 +11,31 @@ using namespace std::chrono;
 
 std::unique_ptr<GaussianDownsampler> gaussian_downsampler;
 
-cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_blur,
+cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_resize,
              const std::string& func_name,
              int num_tests,
              bool show=false)
 {
-    auto start = high_resolution_clock::now();
     cv::Mat out_img;
+    cv::Mat gray_img = cv::imread("assets/bathroom.jpg",
+                                  cv::IMREAD_GRAYSCALE);
+
+    cv::Mat noise_img(gray_img.size(), gray_img.type());
+
+    long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
     {
-        cv::Mat gray_img = cv::imread("assets/test.jpg",
-                                  cv::IMREAD_GRAYSCALE);
-        out_img = gaussian_blur(gray_img);
+        // Do a pass with random noise to avoid any caching effects
+        cv::randn(noise_img, 125, 50);
+        out_img = gaussian_resize(noise_img);
+
+        auto start = high_resolution_clock::now();
+        out_img = gaussian_resize(gray_img);
+        auto end = high_resolution_clock::now();
+        total_time += duration_cast<microseconds>(end - start).count();
     }
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(end - start);
-    auto mean_time = duration.count() / static_cast<long>(num_tests);
-    printf("%s: %lld ms per call\n", func_name.c_str(), mean_time);
+    auto mean_time = total_time / static_cast<long>(num_tests);
+    printf("%s: %lld microseconds per call\n", func_name.c_str(), mean_time);
 
     if (show)
     {
@@ -64,7 +72,7 @@ cv::Mat draw_image_diff(cv::Mat& img1,
     return diff_color;
 }
 
-cv::Mat opencv_gaussian_blur_resize(const cv::Mat& gray) {
+cv::Mat opencv_gaussian_resize(const cv::Mat& gray) {
     // Test Opencv Gaussian Blur
     cv::Mat opencv_gaussian_img, opencv_gaussian_img_resized;
     auto scale = 0.8;
@@ -81,7 +89,7 @@ cv::Mat opencv_gaussian_blur_resize(const cv::Mat& gray) {
     return opencv_gaussian_img_resized;
 }
 
-cv::Mat pytlsd_gaussian_blur_resize(const cv::Mat& gray) {
+cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 
     cv::Mat img_flt;
     gray.convertTo(img_flt, CV_64F);
@@ -108,7 +116,7 @@ cv::Mat pytlsd_gaussian_blur_resize(const cv::Mat& gray) {
     return out_img_8u;
 }
 
-cv::Mat sepconv_gaussian_blur_resize(const cv::Mat& gray) {
+cv::Mat custom_gaussian_resize(const cv::Mat& gray) {
     auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
 
     auto new_width = static_cast<int>(std::ceil(gray.cols * gaussian_downsampler->scale));
@@ -125,18 +133,18 @@ cv::Mat sepconv_gaussian_blur_resize(const cv::Mat& gray) {
 
 int main() {
     auto num_test = 10;
-    auto opencv_gaussian_resize_img = test(opencv_gaussian_blur_resize,
-                                           "opencv_gaussian_blur_resize",
+    auto opencv_gaussian_resize_img = test(opencv_gaussian_resize,
+                                           "opencv_gaussian_resize",
                                            num_test);
 
     gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
-    auto sepconv_gaussian_resize_img = test(sepconv_gaussian_blur_resize,
-                                            "sepconv_gaussian_blur_resize",
+    auto sepconv_gaussian_resize_img = test(custom_gaussian_resize,
+                                            "custom_gaussian_resize",
                                             num_test,
                                             true);
 
-    auto pytlsd_gaussian_resize_img = test(pytlsd_gaussian_blur_resize,
-                                           "pytlsd_gaussian_blur_resize",
+    auto pytlsd_gaussian_resize_img = test(pytlsd_gaussian_resize,
+                                           "pytlsd_gaussian_resize",
                                            num_test);
 
     auto diff1 = draw_image_diff(pytlsd_gaussian_resize_img,

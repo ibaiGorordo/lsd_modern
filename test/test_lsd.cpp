@@ -114,20 +114,31 @@ std::vector<Line> modern_lsd(cv::Mat& gray_img)
 
 
 int main(){
+    std::vector<std::string> images{"building",
+                                    "eiffel",
+                                    "living_room",
+                                    "zurich",
+                                    "bathroom"};
 
-    cv::Mat gray = cv::imread("assets/test.jpg",
-                              cv::IMREAD_GRAYSCALE);
+    for(const auto& img_name : images){
+        cv::Mat gray = cv::imread("assets/" + img_name + ".jpg",
+                                  cv::IMREAD_GRAYSCALE);
 
-    auto num_tests = 10;
-    lsd_cv = cv::createLineSegmentDetector();
-    lsd_modern = std::make_unique<LineSegmentDetector>();
-    auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
-    auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
-    auto line_img3 = test(gray, modern_lsd, "modern_lsd", num_tests);
+        auto num_tests = 1;
+        lsd_cv = cv::createLineSegmentDetector();
+        lsd_modern = std::make_unique<LineSegmentDetector>();
+        auto line_img1 = test(gray, pytlsd, "pytlsd", num_tests);
+        auto line_img2 = test(gray, opencv_lsd, "opencv_lsd", num_tests);
+        auto line_img3 = test(gray, modern_lsd, "modern_lsd", num_tests);
 
-    // Stack images horizontally
-    cv::Mat line_img;
-    cv::hconcat(line_img1, line_img2, line_img);
-    cv::imwrite("../../doc/img/lines.jpg", line_img);
-    cv::waitKey(0);
+        // Stack images horizontally
+        cv::Mat line_img;
+        cv::hconcat(line_img1, line_img2, line_img);
+        cv::imwrite("../../doc/img/lines.jpg", line_img);
+        cv::namedWindow("lines", cv::WINDOW_NORMAL);
+        cv::imshow("lines", line_img);
+        cv::waitKey(0);
+    }
+
+
 }
