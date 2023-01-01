@@ -12,8 +12,8 @@ class GaussianDownsampler {
 public:
     explicit GaussianDownsampler(float scale=0.8f, float sigma_scale=0.6f);
 
-    void blur_downsample(const unsigned  char *in_img,
-                         unsigned  char *out_img,
+    void blur_downsample(const unsigned char *in_img,
+                         unsigned char *out_img,
                          int width, int height);
 
     void blur(const unsigned  char *in_img,
