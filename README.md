@@ -10,8 +10,8 @@ Table with the comparison (ms) of the different parts of the code:
 
 |                     | OpenCV (C++) | pytlsd (C++) | lsd_modern |
 |---------------------|--------------|--------------|------------|
-| Gaussian Blur       | 6            | 47           | 15         |
-| Gaussian Downsample | 6            | 39           | 16         |
+| Gaussian Blur       | 6            | 47           | 14         |
+| Gaussian Downsample | 6            | 39           | 15         |
 | Total               | 48           | 214          |            |
 
 For a more detailed comparison check the [COMPARISONS.md](https://github.com/ibaiGorordo/lsd_modern/blob/main/COMPARISONS.md) file.

@@ -5,7 +5,6 @@
 #include "cmath"
 #include "algorithm"
 #include "GaussianDownsampler.h"
-#include "separable_conv2d.h"
 
 using Kernel = std::vector<float>;
 
@@ -27,8 +26,51 @@ void GaussianDownsampler::blur_downsample(const unsigned char *in_img,
 void GaussianDownsampler::blur(const unsigned  char *in_img,
                                unsigned  char *out_img,
                                int width, int height) {
-    separable_conv2d(in_img, out_img, width, height, kernel);
+    check_new_img_size(width, height);
+    separable_conv2d(in_img, out_img);
 }
+
+//TODO: Since the kernel is symmetrical, we can reduce the multiplications by ~half
+void GaussianDownsampler::separable_conv2d(const unsigned char* in, unsigned char* out)
+{
+    int kernel_size = static_cast<int>(kernel.size());
+    auto kernel_center = kernel_size >> 1;
+    auto end_index = img_width - kernel_center;
+
+    // Copy the contents of the input image to the output image
+    // This is done to avoid the border effects
+    std::copy(in, in + img_width * img_height, out);
+
+    for (int y = 0; y < img_height; ++y) {
+        auto row_pixels = y * img_width;
+
+#pragma omp parallel for reduction(+:temp_sum)
+        // [kernel_center, width - kernel_center - 1]
+        for (int x = kernel_center; x < end_index; ++x) {
+            int idx = row_pixels + x;
+            auto offset_idx = idx - kernel_center;
+
+            // This code is faster (~1ms) than transform_reduce
+            auto temp_sum = 0.0f;
+            for (int k = 0; k < kernel_size; ++k)
+                temp_sum += static_cast<float>(in[offset_idx + k]) * kernel[k];
+            tmp_img[idx] = temp_sum;
+        }
+    }
+    end_index = img_height - kernel_center;
+
+    // [kCenter, height - kCenter - 1]
+    for (int y = kernel_center; y < end_index; ++y)
+    {
+        for (int k = 0; k < kernel_size; ++k)
+        {
+            vertical_conv(tmp_img, row_sum, kernel, k, kernel_center, y, img_width);
+        }
+        copy_sum(row_sum, out, y, img_width, kernel_center);
+        std::fill(row_sum.begin(), row_sum.end(), 0.0f);
+    }
+}
+
 
 void GaussianDownsampler::bilinear_resize(const unsigned char* input, unsigned char* output) const
 {
@@ -103,6 +145,8 @@ void GaussianDownsampler::check_smoothed_img(int width, int height) {
         }
     }
     smoothed_img.resize(width * height);
+    tmp_img.resize(width * height);
+    row_sum.resize(width);
 }
 
 std::vector<float> GaussianDownsampler::get_gaussian_kernel(float scale, float sigma_scale) {
@@ -157,5 +201,32 @@ void GaussianDownsampler::calculate_y_values() {
         y_values[y] = sy >> factor_shift;
         y_fracs[y] = sy - (y_values[y]  << factor_shift);
     }
+}
 
+void GaussianDownsampler::copy_sum(const std::vector<float>& sum,
+                                   unsigned char *out,
+                                   int row, int width,
+                                   int kernel_center) {
+    auto row_pixels = row * width;
+    auto to_unsigned_char = [](auto x) {
+        return static_cast<unsigned char>(x + 0.5f);
+    };
+    std::transform(sum.begin() + kernel_center,
+                   sum.end() - kernel_center,
+                   out + row_pixels + kernel_center,
+                   to_unsigned_char);
+}
+
+void GaussianDownsampler::vertical_conv(const std::vector<float>& tmp,
+                                        std::vector<float>& sum,
+                                        const std::vector<float>& kernel,
+                                        int k, int kernel_center,
+                                        int row, int width)
+{
+    auto row_pixels = (k-kernel_center+row) * width;
+#pragma omp parallel for
+    for (int x = kernel_center; x < width-kernel_center; ++x)
+    {
+        sum[x] += tmp[row_pixels + x] * kernel[k];
+    }
 }

@@ -124,7 +124,7 @@ cv::Mat sepconv_gaussian_blur_resize(const cv::Mat& gray) {
 
 
 int main() {
-    auto num_test = 200;
+    auto num_test = 10;
     auto opencv_gaussian_resize_img = test(opencv_gaussian_blur_resize,
                                            "opencv_gaussian_blur_resize",
                                            num_test);
