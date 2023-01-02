@@ -11,11 +11,11 @@
 class GradientCalculator {
 
 public:
-    void calculateGradients(const unsigned char *image,
+    static void calculateGradients(const unsigned char *image,
                             int width, int height,
                             double threshold,
-                            std::vector<double> &magnitudes,
-                            std::vector<double> &angles);
+                            double *magnitudes,
+                            double *angles);
 
 private:
     constexpr static double not_defined = 1024.0;

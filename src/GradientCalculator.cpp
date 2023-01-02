@@ -9,15 +9,15 @@
 void GradientCalculator::calculateGradients(const unsigned char *image,
                                             int width, int height,
                                             double threshold,
-                                            std::vector<double> &magnitudes,
-                                            std::vector<double> &angles) {
+                                            double* magnitudes,
+                                            double* angles) {
 
-    std::fill(magnitudes.begin(), magnitudes.end(), 0.0);
-    std::fill(angles.begin(), angles.end(), not_defined);
+    std::fill(magnitudes, magnitudes + width * height, 0.0);
+    std::fill(angles, angles + width * height, not_defined);
 
     // Compute the gradient on the image
-    for (int y = 1; y < height - 1; y++) {
-        for (int x = 1; x < width - 1; x++) {
+    for (int y = 0; y < height - 1; y++) {
+        for (int x = 0; x < width - 1; x++) {
             int index = y * width + x;
             double DA = image[index + width + 1] - image[index];
             double BC = image[index + 1] - image[index + width];
@@ -36,6 +36,4 @@ void GradientCalculator::calculateGradients(const unsigned char *image,
             }
         }
     }
-
-
 }
