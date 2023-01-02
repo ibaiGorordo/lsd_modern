@@ -90,14 +90,10 @@ cv::Mat pytlsd_gaussian_blur(const cv::Mat& gray) {
     cv::Mat img_flt;
     gray.convertTo(img_flt, CV_64F);
     auto *imagePtr = reinterpret_cast<double *>(img_flt.data);
+    image_double image = new_image_double_ptr(gray.cols, gray.rows, imagePtr);
 
     cv::Mat out_img;
     out_img = cv::Mat::zeros(gray.size(), CV_64F);
-
-    image_double image;
-    image->data = imagePtr;
-    image->xsize = gray.cols;
-    image->ysize = gray.rows;
     auto out_image_double = gaussian_sampler(image, 1.f, 0.6f/0.8f);
     out_img.data = reinterpret_cast<uchar *>(out_image_double->data);
 

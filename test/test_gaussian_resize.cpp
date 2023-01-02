@@ -91,21 +91,17 @@ cv::Mat opencv_gaussian_resize(const cv::Mat& gray) {
 
 cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 
+    auto scale = 0.8;
+    auto new_width = (int) ceil(gray.cols * scale);
+    auto new_height = (int) ceil(gray.rows * scale);
+
     cv::Mat img_flt;
     gray.convertTo(img_flt, CV_64F);
     auto *imagePtr = reinterpret_cast<double *>(img_flt.data);
-
-    auto scale = 0.8;
+    image_double image = new_image_double_ptr(gray.cols, gray.rows, imagePtr);
 
     cv::Mat out_img;
-    auto new_width = (int) ceil(gray.cols * scale);
-    auto new_height = (int) ceil(gray.rows * scale);
     out_img = cv::Mat::zeros(new_height, new_width, CV_64F);
-
-    image_double image;
-    image->data = imagePtr;
-    image->xsize = gray.cols;
-    image->ysize = gray.rows;
     auto out_image_double = gaussian_sampler(image, scale, 0.6);
     out_img.data = reinterpret_cast<uchar *>(out_image_double->data);
 
