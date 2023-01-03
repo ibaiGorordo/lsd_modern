@@ -74,24 +74,26 @@ int main() {
                                   cv::IMREAD_GRAYSCALE);
     auto resized_img = gaussian_resize(gray_img);
 
-    calculate_gradient(resized_img);
-
     auto ang_thres = 22.5;
     regionDetector = std::make_unique<RegionDetector>(ang_thres);
 
-    auto start = std::chrono::high_resolution_clock::now();
     auto num_test = 100;
+    long long int total_time = 0;
     for(int i = 0; i < num_test; i++)
     {
+        calculate_gradient(resized_img);
+
+        auto start = std::chrono::high_resolution_clock::now();
         regionDetector->detect(gradx_img.ptr<double>(),
                                grady_img.ptr<double>(),
                                magnitude_img.ptr<double>(),
                                bad_pixels_img.ptr<unsigned char>(),
                                resized_img.cols, resized_img.rows);
+        auto stop = std::chrono::high_resolution_clock::now();
+        total_time+= std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    printf("Time taken by function: %lld microseconds", duration.count()/num_test);
+
+    printf("Time taken by function: %lld microseconds", total_time/num_test);
 
     auto magnitude_color = draw_map(magnitude_img);
     cv::namedWindow("magnitude", cv::WINDOW_NORMAL);

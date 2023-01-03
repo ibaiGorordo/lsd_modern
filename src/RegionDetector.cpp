@@ -3,52 +3,46 @@
 //
 #include <vector>
 #include <algorithm>
-#include <numeric>
 #include <cmath>
+#include <numbers>
 #include "RegionDetector.h"
 
-RegionDetector::RegionDetector(double threshold) {
-    this->ang_th = threshold;
-    p = threshold / 180.0;
+RegionDetector::RegionDetector(double ang_th) {
+    this->tan_th = std::abs(tan(ang_th * std::numbers::pi / 180));
+    p = ang_th / 180.0;
 }
 
 void RegionDetector::detect(const double *grad_x, const double *grad_y,
-                            const double *magnitudes, const unsigned char *bad_pixels,
+                            const double *magnitudes, unsigned char *bad_pixels,
                             int width, int height) {
     check_new_img_size(width, height);
 
+    grad_x_ptr = grad_x;
+    grad_y_ptr = grad_y;
+    magnitudes_ptr = magnitudes;
+    used_pixels_ptr = bad_pixels;
+
     // Get the sorted pixel coordinates bsaed on the magnitude that are not bad pixels
-    get_sorted_pixels(magnitudes, bad_pixels);
+    get_sorted_pixels();
 
     // Search regions
-    search_regions(grad_x, grad_y, magnitudes, bad_pixels);
+    search_regions();
 
 }
 
-void RegionDetector::check_new_img_size(int width, int height) {
-    if (img_width != width || img_height != height) {
-        auto log_nt = 5 * (std::log10(double(img_width)) + std::log10(double(img_height))) / 2 + std::log10(11.0);
-        min_reg_size = -log_nt / log10(p);
-        img_width = width;
-        img_height = height;
-    }
-}
-
-
-void RegionDetector::get_sorted_pixels(const double *magnitudes,
-                                  const unsigned char *bad_pixels)
+void RegionDetector::get_sorted_pixels()
 {
     sorted_pixels.clear();
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for collapse(2)
     for(int y = 0; y < img_height; y++)
     {
         auto row_start = y * img_width;
         for(int x = 0; x < img_width; x++)
         {
             int index = row_start + x;
-            if(!bad_pixels[index])
+            if(!used_pixels_ptr[index])
             {
-                auto quant_norm = static_cast<uint16_t>(magnitudes[index] * quant_coeff +0.5);
+                auto quant_norm = static_cast<uint16_t>(magnitudes_ptr[index] * quant_coeff +0.5);
                 sorted_pixels.emplace_back(x, y, quant_norm);
             }
         }
@@ -58,15 +52,83 @@ void RegionDetector::get_sorted_pixels(const double *magnitudes,
     std::sort(sorted_pixels.begin(), sorted_pixels.end(), std::greater<>());
 }
 
-void RegionDetector::search_regions(const double *grad_x, const double *grad_y,
-                                    const double *magnitudes,
-                                    const unsigned char *bad_pixels) {
+void RegionDetector::search_regions() {
     for(auto& point : sorted_pixels)
     {
+        if(used_pixels_ptr[point.y * img_width + point.x])
+            continue;
 
+        reset_region();
+        region_grow(point.x, point.y);
+
+        if(region_points.size() < min_reg_size) continue;
     }
 
+}
 
+void RegionDetector::region_grow(int x, int y) {
+
+    register_point(x, y);
+
+    int xx_min = min_limit(x);
+    int xx_max = max_limit(x, img_width);
+    int yy_min = min_limit(y);
+    int yy_max = max_limit(y, img_height);
+
+#pragma omp parallel for collapse(2)
+    // Check the 8 neighbors
+    for(int y_neigh = yy_min; y_neigh <= yy_max; y_neigh++)
+    {
+        const auto row_start = y_neigh * img_width;
+        for(int x_neigh = xx_min; x_neigh <= xx_max; x_neigh++)
+        {
+            int index = row_start + x_neigh;
+
+            if (used_pixels_ptr[index]) continue;
+
+            auto dx_neigh = grad_x_ptr[index];
+            auto dy_neigh = grad_y_ptr[index];
+
+            if(!is_aligned(dx_neigh, dy_neigh, reg_dx, reg_dy, tan_th))
+                continue;
+
+            region_grow(x_neigh, y_neigh);
+        }
+    }
+}
+
+void RegionDetector::check_new_img_size(int width, int height) {
+    if (img_width == width && img_height == height) return;
+
+    img_width = width;
+    img_height = height;
+    auto log_nt = 5 * (std::log10(double(img_width)) + std::log10(double(img_height))) / 2 + std::log10(11.0);
+    min_reg_size = static_cast<int>(-log_nt / log10(p));
+}
+
+void RegionDetector::register_point(int x, int y) {
+    auto index = y * img_width + x;
+    auto dx = grad_x_ptr[index];
+    auto dy = grad_y_ptr[index];
+    reg_dx += dx;
+    reg_dy += dy;
+    auto norm = magnitudes_ptr[index];
+    region_points.emplace_back(x, y, dx, dy, norm);
+    used_pixels_ptr[index] = 1;
+}
+
+bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
+    // Instead of using the angles, use dx/dy and dx2/dy2 to avoid the expensive atan2
+    auto dot = dx * dx2 + dy * dy2;
+    auto cross = dx * dy2 - dy * dx2;
+    auto tan = cross / dot;
+    return std::abs(tan) <= tan_th;
+}
+
+void RegionDetector::reset_region() {
+    region_points.clear();
+    reg_dx = 0;
+    reg_dy = 0;
 }
 
 
