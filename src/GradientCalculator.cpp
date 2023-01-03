@@ -12,7 +12,6 @@ void GradientCalculator::calculateGradients(const unsigned char *image,
                                             double *grad_y,
                                             double *magnitudes,
                                             unsigned char *bad_pixels) const {
-
 #pragma omp parallel for collapse(2)
     // Compute the gradient on the image
     for (int y = 0; y < height - 1; y++) {

@@ -11,7 +11,7 @@ add_library(${lib_name}
             src/LineSegmentDetector.cpp
             src/GaussianDownsampler.cpp
             src/GradientCalculator.cpp
-            src/GradientCalculator.h)
+            src/GradientCalculator.h src/RegionDetector.cpp src/RegionDetector.h)
 
 target_include_directories(${lib_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 

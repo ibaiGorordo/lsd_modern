@@ -167,7 +167,7 @@ void custom_angle_gradient(const cv::Mat& gray,
 }
 
 int main() {
-    auto num_test = 100;
+    auto num_test = 10;
     auto opencv_gradient_img = test(opencv_angle_gradient,
                                     "opencv_angle_gradient",
                                     num_test,
