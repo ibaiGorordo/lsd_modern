@@ -5,19 +5,20 @@
 #include <opencv2/opencv.hpp>
 
 #include "lsd.h"
-#include "GaussianDownsampler.h"
 #include "GradientCalculator.h"
 
 using namespace std::chrono;
 
-std::unique_ptr<GaussianDownsampler> gaussian_downsampler;
+std::unique_ptr<GradientCalculator> gradientCalculator;
+cv::Mat grad_x, grad_y, bad_pixels;
+image_double angles, modgrad;
 
-
-cv::Mat draw_map(const cv::Mat& mat)
+cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
 {
     cv::Mat adjMap;
     double min, max;
     cv::minMaxLoc(mat, &min, &max);
+    if (!use_min) min = 0;
     mat.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
     cv::applyColorMap(adjMap, adjMap, cv::COLORMAP_JET);
     return adjMap;
@@ -54,13 +55,19 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
 
     cv::Mat angle_img(gray_img.size(), CV_64F);
     cv::Mat gradient_img(gray_img.size(), CV_64F);
+    angles = new_image_double(gray_img.cols, gray_img.rows);
+    modgrad = new_image_double(gray_img.cols, gray_img.rows);
+
+    grad_x = cv::Mat(gray_img.size(), CV_64F);
+    grad_y = cv::Mat(gray_img.size(), CV_64F);
+    bad_pixels = cv::Mat(gray_img.size(), CV_8U);
 
     long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
     {
         // Do a pass with random noise to avoid any caching effects
-//        cv::randn(noise_img, 125, 50);
-//        angle_gradient(noise_img, angle_img, gradient_img);
+        cv::randn(noise_img, 125, 50);
+        angle_gradient(noise_img, angle_img, gradient_img);
 
         auto start = high_resolution_clock::now();
         angle_gradient(gray_img, angle_img, gradient_img);
@@ -73,8 +80,11 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
     if(show)
     {
         cv::namedWindow(func_name, cv::WINDOW_NORMAL);
-        cv::imshow(func_name, draw_map(angle_img));
+        cv::imshow(func_name, draw_map(gradient_img, false));
     }
+
+    free_image_double(angles);
+    free_image_double(modgrad);
 
     return gradient_img;
 }
@@ -95,7 +105,6 @@ void opencv_angle_gradient(const cv::Mat& gray,
     ang_img.col(img_width - 1).setTo(NOTDEF);
 
     // Computing gradient for remaining pixels
-    double max_grad = -1;
     for(int y = 0; y < img_height - 1; ++y)
     {
         auto* scaled_image_row = gray.ptr<uchar>(y);
@@ -119,7 +128,6 @@ void opencv_angle_gradient(const cv::Mat& gray,
             else
             {
                 angles_row[x] = cv::fastAtan2(float(gx), float(-gy)) * DEG_TO_RADS;  // gradient angle computation
-                if (norm > max_grad) { max_grad = norm; }
             }
 
         }
@@ -135,56 +143,57 @@ void pytlsd_angle_gradient(const cv::Mat& gray,
     auto *imagePtr = reinterpret_cast<double *>(img_flt.data);
     image_double image = new_image_double_ptr(gray.cols, gray.rows, imagePtr);
 
-    auto *anglePtr = reinterpret_cast<double *>(ang_img.data);
-    image_double angles = new_image_double(ang_img.cols, ang_img.rows);
-
-    auto *gradientPtr = reinterpret_cast<double *>(grad_img.data);
-    image_double modgrad = new_image_double(ang_img.cols, ang_img.rows);
-
-
     auto threshold = 5.2262518595055063;
     grad_angle_orientation(image, threshold, angles, modgrad);
-    memcpy(anglePtr, angles->data, ang_img.cols * ang_img.rows * sizeof(double));
-    memcpy(gradientPtr, modgrad->data, ang_img.cols * ang_img.rows * sizeof(double));
+    memcpy(ang_img.data, angles->data, ang_img.cols * ang_img.rows * sizeof(double));
+    memcpy(grad_img.data, modgrad->data, grad_img.cols * grad_img.rows * sizeof(double));
+
+
 }
 
 void custom_angle_gradient(const cv::Mat& gray,
                               cv::Mat& ang_img,
                               cv::Mat& grad_img) {
     auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
-    auto *anglePtr = reinterpret_cast<double *>(ang_img.data);
-    auto *gradientPtr = reinterpret_cast<double *>(grad_img.data);
+    auto *grad_xPtr = reinterpret_cast<double *>(grad_x.data);
+    auto *grad_yPtr = reinterpret_cast<double *>(grad_y.data);
+    auto *magnitudesPtr = reinterpret_cast<double *>(grad_img.data);
+    auto *bad_pixelsPtr = reinterpret_cast<unsigned char *>(bad_pixels.data);
 
-    auto threshold = 5.2262518595055063;
-    GradientCalculator::calculateGradients(imagePtr, gray.cols, gray.rows, threshold, gradientPtr, anglePtr);
+    gradientCalculator->calculateGradients(imagePtr,
+                                           gray.cols, gray.rows,
+                                           grad_xPtr, grad_yPtr,
+                                           magnitudesPtr, bad_pixelsPtr);
 }
 
 int main() {
-    auto num_test = 1;
-    auto opencv_gaussian_img = test(opencv_angle_gradient,
+    auto num_test = 100;
+    auto opencv_gradient_img = test(opencv_angle_gradient,
                                     "opencv_angle_gradient",
                                     num_test,
                                     true);
 
-    auto sepconv_gaussian_img = test(custom_angle_gradient,
+    double threshold = 5.2262518595055063;
+    gradientCalculator = std::make_unique<GradientCalculator>(threshold);
+    auto custom_gradient_img = test(custom_angle_gradient,
                                      "custom_angle_gradientr",
                                      num_test);
 
-    auto pytlsd_gaussian_img = test(pytlsd_angle_gradient,
+    auto pytlsd_gradient_img = test(pytlsd_angle_gradient,
                                     "pytlsd_angle_gradient",
                                     num_test);
 
-    auto diff1 = draw_image_diff(pytlsd_gaussian_img,
-                                 opencv_gaussian_img,
+    auto diff1 = draw_image_diff(pytlsd_gradient_img,
+                                 opencv_gradient_img,
                                  "Pytlsd Vs Opencv",
                                  true);
 
-    auto diff2 = draw_image_diff(sepconv_gaussian_img,
-                                 opencv_gaussian_img,
+    auto diff2 = draw_image_diff(custom_gradient_img,
+                                 opencv_gradient_img,
                                  "SepConv Vs Opencv",
                                  true);
 
-    cv::Mat grad_color = draw_map(opencv_gaussian_img);
+    cv::Mat grad_color = draw_map(opencv_gradient_img);
     cv::Mat combined_diff;
     cv::hconcat(grad_color, diff2, combined_diff);
     cv::hconcat(combined_diff, diff2, combined_diff);

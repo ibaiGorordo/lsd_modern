@@ -11,14 +11,18 @@
 class GradientCalculator {
 
 public:
-    static void calculateGradients(const unsigned char *image,
+    GradientCalculator() = default;
+    explicit GradientCalculator(double threshold) : threshold(threshold) {threshold_squared = threshold * threshold *4;}
+    void calculateGradients(const unsigned char *image,
                             int width, int height,
-                            double threshold,
+                            double *grad_x,
+                            double *grad_y,
                             double *magnitudes,
-                            double *angles);
+                            unsigned char *bad_pixels) const;
 
 private:
-    constexpr static double not_defined = 1024.0;
+    double threshold;
+    double threshold_squared;
 private:
 
 };

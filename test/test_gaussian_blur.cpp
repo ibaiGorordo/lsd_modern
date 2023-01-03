@@ -106,6 +106,7 @@ cv::Mat pytlsd_gaussian_blur(const cv::Mat& gray) {
 
 cv::Mat sepconv_gaussian_blur(const cv::Mat& gray) {
     auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
+
     cv::Mat out_img;
     out_img = cv::Mat::zeros(gray.size(), CV_8U);
     auto *outPtr = reinterpret_cast<unsigned char *>(out_img.data);
