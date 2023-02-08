@@ -69,10 +69,10 @@ std::vector<Line> pytlsd(cv::Mat& gray_img)
     std::vector<Line> lines;
     for (int i = 0; i < N; ++i)
     {
-        double x1 = out[7 * i];
-        double y1 = out[7 * i + 1];
-        double x2 = out[7 * i + 2];
-        double y2 = out[7 * i + 3];
+        double x1 = out[5 * i];
+        double y1 = out[5 * i + 1];
+        double x2 = out[5 * i + 2];
+        double y2 = out[5 * i + 3];
         lines.emplace_back(cv::Point2d(x1, y1), cv::Point2d(x2, y2));
     }
 
