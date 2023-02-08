@@ -127,8 +127,8 @@ void GaussianDownsampler::check_new_img_size(int width, int height) {
 
     img_width = width;
     img_height = height;
-    resize_width = static_cast<int>(std::ceil(static_cast<float>(width) * scale));
-    resize_height = static_cast<int>(std::ceil(static_cast<float>(height) * scale));
+    resize_width = static_cast<int>(std::floor(static_cast<float>(width) * scale));
+    resize_height = static_cast<int>(std::floor(static_cast<float>(height) * scale));
     calculate_x_values();
     calculate_y_values();
 }

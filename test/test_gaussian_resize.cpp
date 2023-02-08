@@ -82,8 +82,8 @@ cv::Mat opencv_gaussian_resize(const cv::Mat& gray) {
     cv::Size ksize(1 + 2 * h, 1 + 2 * h); // kernel size
     cv::GaussianBlur(gray, opencv_gaussian_img, ksize, sigma);
 
-    cv::Size new_size(int(ceil(gray.cols * scale)),
-                      int(ceil(gray.rows * scale)));
+    cv::Size new_size(int(floor(gray.cols * scale)),
+                      int(floor(gray.rows * scale)));
     resize(opencv_gaussian_img, opencv_gaussian_img_resized, new_size, 0, 0, cv::INTER_LINEAR_EXACT);
 
     return opencv_gaussian_img_resized;
@@ -92,8 +92,8 @@ cv::Mat opencv_gaussian_resize(const cv::Mat& gray) {
 cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 
     auto scale = 0.8;
-    auto new_width = (int) ceil(gray.cols * scale);
-    auto new_height = (int) ceil(gray.rows * scale);
+    auto new_width = (int) floor(gray.cols * scale);
+    auto new_height = (int) floor(gray.rows * scale);
 
     cv::Mat img_flt;
     gray.convertTo(img_flt, CV_64F);
@@ -115,8 +115,8 @@ cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 cv::Mat custom_gaussian_resize(const cv::Mat& gray) {
     auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
 
-    auto new_width = static_cast<int>(std::ceil(gray.cols * gaussian_downsampler->scale));
-    auto new_height = static_cast<int>(std::ceil(gray.rows * gaussian_downsampler->scale));
+    auto new_width = static_cast<int>(std::floor(gray.cols * gaussian_downsampler->scale));
+    auto new_height = static_cast<int>(std::floor(gray.rows * gaussian_downsampler->scale));
     cv::Mat out_img(new_height, new_width, CV_8U);
     auto *outPtr = reinterpret_cast<unsigned char *>(out_img.data);
 
