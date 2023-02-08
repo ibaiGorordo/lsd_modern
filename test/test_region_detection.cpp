@@ -9,6 +9,8 @@
 #include "GradientCalculator.h"
 #include "RegionDetector.h"
 
+using namespace std::chrono;
+
 
 std::unique_ptr<GradientCalculator> gradientCalculator;
 std::unique_ptr<RegionDetector> regionDetector;
@@ -68,32 +70,45 @@ void calculate_gradient(cv::Mat resized_img)
                                            magnitudesPtr, bad_pixelsPtr);
 }
 
-int main() {
-
+void test(const std::function<void(cv::Mat&)>& region_detect,
+          const std::string& func_name,
+          int num_tests)
+{
     cv::Mat gray_img = cv::imread("assets/bathroom.jpg",
                                   cv::IMREAD_GRAYSCALE);
+
     auto resized_img = gaussian_resize(gray_img);
 
-    auto ang_thres = 22.5;
-    regionDetector = std::make_unique<RegionDetector>(ang_thres);
-
-    auto num_test = 100;
-    long long int total_time = 0;
-    for(int i = 0; i < num_test; i++)
+    long long total_time = 0;
+    for (int i = 0; i < num_tests; ++i)
     {
         calculate_gradient(resized_img);
-
-        auto start = std::chrono::high_resolution_clock::now();
-        regionDetector->detect(gradx_img.ptr<double>(),
-                               grady_img.ptr<double>(),
-                               magnitude_img.ptr<double>(),
-                               bad_pixels_img.ptr<unsigned char>(),
-                               resized_img.cols, resized_img.rows);
-        auto stop = std::chrono::high_resolution_clock::now();
-        total_time+= std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+        auto start = high_resolution_clock::now();
+        region_detect(resized_img);
+        auto end = high_resolution_clock::now();
+        total_time += duration_cast<microseconds>(end - start).count();
     }
+    auto mean_time = total_time / static_cast<long>(num_tests);
+    printf("%s: %lld microseconds per call\n", func_name.c_str(), mean_time);
+}
 
-    printf("Time taken by function: %lld microseconds", total_time/num_test);
+
+void test_custom_region_detector(const cv::Mat& resized_img)
+{
+    regionDetector->detect(gradx_img.ptr<double>(),
+                           grady_img.ptr<double>(),
+                           magnitude_img.ptr<double>(),
+                           bad_pixels_img.ptr<unsigned char>(),
+                           resized_img.cols, resized_img.rows);
+
+}
+
+int main() {
+
+    auto num_test = 100;
+    auto ang_thres = 22.5;
+    regionDetector = std::make_unique<RegionDetector>(ang_thres);
+    test(test_custom_region_detector, "custom_region_detector", num_test);
 
     auto magnitude_color = draw_map(magnitude_img);
     cv::namedWindow("magnitude", cv::WINDOW_NORMAL);
