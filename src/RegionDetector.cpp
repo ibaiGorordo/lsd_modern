@@ -53,6 +53,7 @@ void RegionDetector::get_sorted_pixels()
 }
 
 void RegionDetector::search_regions() {
+    printf("First pixel: %d, %d\n", sorted_pixels[0].x, sorted_pixels[0].y);
     for(auto& point : sorted_pixels)
     {
         if(used_pixels_ptr[point.y * img_width + point.x])
@@ -62,6 +63,8 @@ void RegionDetector::search_regions() {
         region_grow(point.x, point.y);
 
         if(region_points.size() < min_reg_size) continue;
+        printf("Found region lsd of size %zu\n", region_points.size());
+        break;
     }
 
 }
@@ -97,6 +100,7 @@ void RegionDetector::region_grow(int x, int y) {
     }
 }
 
+// TODO: log_nt is also used in nfa, so maybe get the log_nt as input instead of calculating it here and in nfa
 void RegionDetector::check_new_img_size(int width, int height) {
     if (img_width == width && img_height == height) return;
 
