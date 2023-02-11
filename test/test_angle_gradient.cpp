@@ -4,14 +4,12 @@
 #include "chrono"
 #include <opencv2/opencv.hpp>
 
-#include "lsd.h"
 #include "GradientCalculator.h"
 
 using namespace std::chrono;
 
 std::unique_ptr<GradientCalculator> gradientCalculator;
 cv::Mat grad_x, grad_y, bad_pixels;
-image_double angles, modgrad;
 
 cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
 {
@@ -55,8 +53,6 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
 
     cv::Mat angle_img(gray_img.size(), CV_64F);
     cv::Mat gradient_img(gray_img.size(), CV_64F);
-    angles = new_image_double(gray_img.cols, gray_img.rows);
-    modgrad = new_image_double(gray_img.cols, gray_img.rows);
 
     grad_x = cv::Mat(gray_img.size(), CV_64F);
     grad_y = cv::Mat(gray_img.size(), CV_64F);
@@ -82,9 +78,6 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
         cv::namedWindow(func_name, cv::WINDOW_NORMAL);
         cv::imshow(func_name, draw_map(gradient_img, false));
     }
-
-    free_image_double(angles);
-    free_image_double(modgrad);
 
     return gradient_img;
 }
@@ -134,22 +127,6 @@ void opencv_angle_gradient(const cv::Mat& gray,
     }
 }
 
-void pytlsd_angle_gradient(const cv::Mat& gray,
-                           cv::Mat& ang_img,
-                           cv::Mat& grad_img) {
-
-    cv::Mat img_flt;
-    gray.convertTo(img_flt, CV_64F);
-    auto *imagePtr = reinterpret_cast<double *>(img_flt.data);
-    image_double image = new_image_double_ptr(gray.cols, gray.rows, imagePtr);
-
-    auto threshold = 5.2262518595055063;
-    grad_angle_orientation(image, threshold, angles, modgrad);
-    memcpy(ang_img.data, angles->data, ang_img.cols * ang_img.rows * sizeof(double));
-    memcpy(grad_img.data, modgrad->data, grad_img.cols * grad_img.rows * sizeof(double));
-
-
-}
 
 void custom_angle_gradient(const cv::Mat& gray,
                               cv::Mat& ang_img,
@@ -179,24 +156,16 @@ int main() {
                                      "custom_angle_gradientr",
                                      num_test);
 
-    auto pytlsd_gradient_img = test(pytlsd_angle_gradient,
-                                    "pytlsd_angle_gradient",
-                                    num_test);
 
-    auto diff1 = draw_image_diff(pytlsd_gradient_img,
+    auto diff = draw_image_diff(custom_gradient_img,
                                  opencv_gradient_img,
-                                 "Pytlsd Vs Opencv",
-                                 true);
-
-    auto diff2 = draw_image_diff(custom_gradient_img,
-                                 opencv_gradient_img,
-                                 "SepConv Vs Opencv",
+                                 "Custom Vs Opencv",
                                  true);
 
     cv::Mat grad_color = draw_map(opencv_gradient_img);
     cv::Mat combined_diff;
-    cv::hconcat(grad_color, diff2, combined_diff);
-    cv::hconcat(combined_diff, diff2, combined_diff);
+    cv::hconcat(grad_color, diff, combined_diff);
+    cv::hconcat(combined_diff, diff, combined_diff);
     cv::imwrite("../../doc/img/gradient_diff.png", combined_diff);
 
     cv::waitKey(0);
