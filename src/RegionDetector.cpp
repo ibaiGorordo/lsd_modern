@@ -129,6 +129,34 @@ bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, do
     return std::abs(tan) <= tan_th;
 }
 
+///** 3/2 pi */
+//#define M_3_2_PI 4.71238898038
+//
+///** 2 pi */
+//#define M_2__PI  6.28318530718
+//
+//bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
+//    // Instead of using the angles, use dx/dy and dx2/dy2 to avoid the expensive atan2
+//    auto dot = dx * dx2 + dy * dy2;
+//    auto cross = dx * dy2 - dy * dx2;
+//    auto tan = cross / dot;
+//    auto angle1 = std::atan2(dy, dx);
+//    auto angle2 = std::atan2(dy2, dx2);
+//
+//    auto theta = angle2 - angle1;
+//    if ( theta < 0.0 ) theta = -theta;
+//    if ( theta > M_3_2_PI )
+//    {
+//        theta -= M_2__PI;
+//        if ( theta < 0.0 ) theta = -theta;
+//    }
+//
+//    auto prec = M_PI * 22.5 / 180.0;
+//    printf("theta: %f, atan:%f, tan1: %f, theta_smaller: %d, tan smaller: %d\n", theta, atan(tan), tan, theta < prec, std::abs(tan) < tan_th);
+//    return  theta < prec;
+//}
+
+
 void RegionDetector::reset_region() {
     region_points.clear();
     reg_dx = 0;
