@@ -33,26 +33,7 @@ void RegionDetector::detect(const double *angles,
 
 void RegionDetector::get_sorted_pixels()
 {
-
-    max_grad = 0;
-    for(int y = 0; y < img_height; y++)
-    {
-        auto row_start = y * img_width;
-        for(int x = 0; x < img_width; x++)
-        {
-            int index = row_start + x;
-            if(magnitudes_ptr[index] > max_grad)
-            {
-                max_grad = magnitudes_ptr[index];
-            }
-        }
-    }
-
-    quant_coeff = (double) num_bins / max_grad;
-
-
     sorted_pixels.clear();
-#pragma omp parallel for collapse(2)
     for(int y = 0; y < img_height; y++)
     {
         auto row_start = y * img_width;

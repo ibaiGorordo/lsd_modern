@@ -46,9 +46,9 @@ private:
 
     double ang_th{};
 
-    uint16_t num_bins = 1024; // 52 ~= 256/5.22 (gradient threshold)
-    double max_grad = 256;
-    double quant_coeff = (double) num_bins / max_grad;
+    static constexpr uint16_t num_bins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
+    static constexpr uint16_t max_grad = 256;
+    static constexpr double quant_coeff = (double) num_bins / max_grad;
     std::vector<NormPoint> sorted_pixels;
 
     std::vector<RegionPoint> region_points;
