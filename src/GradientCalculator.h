@@ -17,7 +17,7 @@ public:
     }
     void calculateGradients(const unsigned char *image,
                             int width, int height,
-                            double *tan_values,
+                            double *angles,
                             double *magnitudes,
                             unsigned char *bad_pixels) const;
 
