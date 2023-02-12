@@ -2,32 +2,12 @@
 // Created by ibaig on 1/1/2023.
 //
 
-#include "cmath"
 #include "algorithm"
+#include <cmath>
+
+#include "utils.h"
 #include "GradientCalculator.h"
 
-// Ref: https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
-float fast_atan2f(float y, float x) {
-  float a, r, s, t, c, q, ax, ay, mx, mn;
-  ax = fabsf(x);
-  ay = fabsf(y);
-  mx = fmaxf(ay, ax);
-  mn = fminf(ay, ax);
-  a  = mn / mx;
-  /* Minimax polynomial approximation to atan(a) on [0,1] */
-  s = a * a;
-  c = s * a;
-  q = s * s;
-  r = 0.024840285f * q + 0.18681418f;
-  t = -0.094097948f * q - 0.33213072f;
-  r = r * s + t;
-  r = r * c + a;
-  /* Map to full circle */
-  if (ay > ax) r = 1.57079637f - r;
-  if (x < 0) r = 3.14159274f - r;
-  if (y < 0) r = -r;
-  return r;
-}
 
 void GradientCalculator::calculateGradients(const unsigned char *image,
                                             int width, int height,
@@ -55,7 +35,10 @@ void GradientCalculator::calculateGradients(const unsigned char *image,
             }
             bad_pixels[index] = is_bad;
             magnitudes[index] = std::sqrt(norm)/2.0;
-            angles[index] = fast_atan2f((float) dx, (float) -dy);
+            const auto dx_float = static_cast<float>(dx);
+            const auto dy_float = static_cast<float>(dy);
+
+            angles[index] = fast_atan2f(dx_float, -dy_float);
 
         }
     }

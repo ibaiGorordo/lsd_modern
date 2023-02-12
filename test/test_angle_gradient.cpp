@@ -124,7 +124,6 @@ void opencv_angle_gradient(const cv::Mat& gray,
 
             // Convert from 0-2pi to -pi to pi
             angles_row[x] = (angle <= CV_PI ? angle : angle - 2 * CV_PI);
-
         }
     }
 }

@@ -12,7 +12,9 @@ class GradientCalculator {
 
 public:
     GradientCalculator() = default;
-    explicit GradientCalculator(double threshold) : threshold(threshold) {threshold_squared = threshold * threshold *4;}
+    explicit GradientCalculator(double threshold) : threshold(threshold) {
+        threshold_squared = static_cast<int>(threshold * threshold *4);
+    }
     void calculateGradients(const unsigned char *image,
                             int width, int height,
                             double *tan_values,
@@ -21,7 +23,7 @@ public:
 
 private:
     double threshold;
-    double threshold_squared;
+    int threshold_squared;
 private:
 
 };
