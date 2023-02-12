@@ -15,8 +15,7 @@ public:
     explicit GradientCalculator(double threshold) : threshold(threshold) {threshold_squared = threshold * threshold *4;}
     void calculateGradients(const unsigned char *image,
                             int width, int height,
-                            double *grad_x,
-                            double *grad_y,
+                            double *tan_values,
                             double *magnitudes,
                             unsigned char *bad_pixels) const;
 

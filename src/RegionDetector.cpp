@@ -121,40 +121,57 @@ void RegionDetector::register_point(int x, int y) {
     used_pixels_ptr[index] = 1;
 }
 
-bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
-    // Instead of using the angles, use dx/dy and dx2/dy2 to avoid the expensive atan2
-    auto dot = dx * dx2 + dy * dy2;
-    auto cross = dx * dy2 - dy * dx2;
-    auto tan = cross / dot;
-    return std::abs(tan) <= tan_th;
-}
-
-///** 3/2 pi */
-//#define M_3_2_PI 4.71238898038
-//
-///** 2 pi */
-//#define M_2__PI  6.28318530718
-//
 //bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
 //    // Instead of using the angles, use dx/dy and dx2/dy2 to avoid the expensive atan2
 //    auto dot = dx * dx2 + dy * dy2;
 //    auto cross = dx * dy2 - dy * dx2;
 //    auto tan = cross / dot;
-//    auto angle1 = std::atan2(dy, dx);
-//    auto angle2 = std::atan2(dy2, dx2);
-//
-//    auto theta = angle2 - angle1;
-//    if ( theta < 0.0 ) theta = -theta;
-//    if ( theta > M_3_2_PI )
-//    {
-//        theta -= M_2__PI;
-//        if ( theta < 0.0 ) theta = -theta;
-//    }
-//
-//    auto prec = M_PI * 22.5 / 180.0;
-//    printf("theta: %f, atan:%f, tan1: %f, theta_smaller: %d, tan smaller: %d\n", theta, atan(tan), tan, theta < prec, std::abs(tan) < tan_th);
-//    return  theta < prec;
+//    return std::abs(tan) <= tan_th;
 //}
+
+/** 3/2 pi */
+#define M_3_2_PI 4.71238898038
+
+/** 2 pi */
+#define M_2__PI  6.28318530718
+
+bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
+
+    printf("dx: %f, dy: %f, dx2: %f, dy2: %f\n", dx, dy, dx2, dy2);
+
+    auto dot = dx * dx2 + dy * dy2;
+    auto cross = dx * dy2 - dy * dx2;
+    auto norm_cross = std::sqrt(cross * cross);
+    auto tan = norm_cross / dot;
+    auto theta_angle = std::atan(tan);
+
+
+    auto angle1 = std::atan2(dy, dx);
+    auto angle2 = std::atan2(dy2, dx2);
+
+    auto theta = angle2 - angle1;
+    double theta2 = theta;
+    if ( theta2 < 0.0 ) theta2 = -theta;
+    if ( theta2 > M_3_2_PI )
+    {
+        theta2 -= M_2__PI;
+        if ( theta2 < 0.0 ) theta2 = -theta2;
+    }
+
+//    if ( theta_angle < 0.0 ) theta_angle = -theta_angle;
+//    if ( theta_angle > M_3_2_PI )
+//    {
+//        theta_angle -= M_2__PI;
+//        if ( theta_angle < 0.0 ) theta_angle = -theta_angle;
+//    }
+
+
+    auto prec = M_PI * 22.5 / 180.0;
+
+    printf("angle1: %f, angle2: %f, theta: %f, theta2: %f, thetha_angle: %f, is smaller: %d, is smaller2: %d\n",
+           angle1, angle2, theta, theta2, theta_angle, theta2 < prec, theta_angle < prec);
+    return  theta < prec;
+}
 
 
 void RegionDetector::reset_region() {

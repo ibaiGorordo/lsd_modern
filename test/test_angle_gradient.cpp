@@ -9,15 +9,26 @@
 using namespace std::chrono;
 
 std::unique_ptr<GradientCalculator> gradientCalculator;
-cv::Mat grad_x, grad_y, bad_pixels;
+cv::Mat bad_pixels;
 
 cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
 {
     cv::Mat adjMap;
     double min, max;
     cv::minMaxLoc(mat, &min, &max);
+
+    printf("min diff: %f, max diff: %f\n", min, max);
+
     if (!use_min) min = 0;
-    mat.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
+
+    if(max-min < 1e-6)
+    {
+      mat.convertTo(adjMap, CV_8UC1, 1, 0);
+    }
+    else
+    {
+      mat.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
+    }
     cv::applyColorMap(adjMap, adjMap, cv::COLORMAP_JET);
     return adjMap;
 }
@@ -49,22 +60,13 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
     cv::Mat gray_img = cv::imread("assets/bathroom.jpg",
                                   cv::IMREAD_GRAYSCALE);
 
-    cv::Mat noise_img(gray_img.size(), gray_img.type());
-
-    cv::Mat angle_img(gray_img.size(), CV_64F);
-    cv::Mat gradient_img(gray_img.size(), CV_64F);
-
-    grad_x = cv::Mat(gray_img.size(), CV_64F);
-    grad_y = cv::Mat(gray_img.size(), CV_64F);
+    cv::Mat angle_img(gray_img.size(), CV_64F, -1024.0);
+    cv::Mat gradient_img(gray_img.size(), CV_64F, 0.0);
     bad_pixels = cv::Mat(gray_img.size(), CV_8U);
 
     long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
     {
-        // Do a pass with random noise to avoid any caching effects
-        cv::randn(noise_img, 125, 50);
-        angle_gradient(noise_img, angle_img, gradient_img);
-
         auto start = high_resolution_clock::now();
         angle_gradient(gray_img, angle_img, gradient_img);
         auto end = high_resolution_clock::now();
@@ -76,10 +78,10 @@ cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_grad
     if(show)
     {
         cv::namedWindow(func_name, cv::WINDOW_NORMAL);
-        cv::imshow(func_name, draw_map(gradient_img, false));
+        cv::imshow(func_name, draw_map(angle_img, false));
     }
 
-    return gradient_img;
+    return angle_img;
 }
 
 
@@ -114,59 +116,108 @@ void opencv_angle_gradient(const cv::Mat& gray,
 
             modgrad_row[x] = norm;    // store gradient
 
-            if (norm <= threshold)  // norm too small, gradient no defined
-            {
-                angles_row[x] = NOTDEF;
-            }
-            else
-            {
-                angles_row[x] = cv::fastAtan2(float(gx), float(-gy)) * DEG_TO_RADS;  // gradient angle computation
-            }
+            if (norm <= threshold)
+              continue;
+
+//            angles_row[x] = std::atan2(float(gx), float(-gy));  // gradient angle computation
+            auto angle = cv::fastAtan2(float(gx), float(-gy)) * DEG_TO_RADS;  // gradient angle computation
+
+            // Convert from 0-2pi to -pi to pi
+            angles_row[x] = (angle <= CV_PI ? angle : angle - 2 * CV_PI);
 
         }
     }
 }
 
 
-void custom_angle_gradient(const cv::Mat& gray,
+void pytlsd_angle_gradient(const cv::Mat& gray,
+                           cv::Mat& ang_img,
+                           cv::Mat& grad_img) {
+
+    auto img_height = gray.rows;
+    auto img_width = gray.cols;
+    constexpr double NOTDEF = -1024.0;
+    constexpr double DEG_TO_RADS = CV_PI / 180;
+    auto threshold = 5.2262518595055063;
+
+    // Undefined the down and right boundaries
+    ang_img.row(img_height - 1).setTo(NOTDEF);
+    ang_img.col(img_width - 1).setTo(NOTDEF);
+
+    auto img_data = gray.data;
+
+    for(int y = 0; y < img_height - 1; ++y) {
+        for (int x = 0; x < img_width - 1; ++x) {
+            auto adr = y * img_width + x;
+
+            auto com1 = img_data[adr + img_width + 1] - img_data[adr];
+            auto com2 = img_data[adr + 1] - img_data[adr + img_width];
+
+            auto gx = com1 + com2; /* gradient x component */
+            auto gy = com1 - com2; /* gradient y component */
+            auto norm2 = gx * gx + gy * gy;
+            auto norm = sqrt( norm2 / 4.0 ); /* gradient norm */
+
+            grad_img.at<double>(y, x) = norm; /* store gradient */
+
+            if (norm <= threshold)
+                  continue;
+            ang_img.at<double>(y, x) = atan2(gx, -gy); /* gradient angle computation */
+        }
+    }
+
+}
+
+    void custom_angle_gradient(const cv::Mat& gray,
                               cv::Mat& ang_img,
                               cv::Mat& grad_img) {
     auto *imagePtr = reinterpret_cast<unsigned char *>(gray.data);
-    auto *grad_xPtr = reinterpret_cast<double *>(grad_x.data);
-    auto *grad_yPtr = reinterpret_cast<double *>(grad_y.data);
+    auto *tan_valuesPtr = reinterpret_cast<double *>(ang_img.data);
     auto *magnitudesPtr = reinterpret_cast<double *>(grad_img.data);
     auto *bad_pixelsPtr = reinterpret_cast<unsigned char *>(bad_pixels.data);
 
     gradientCalculator->calculateGradients(imagePtr,
                                            gray.cols, gray.rows,
-                                           grad_xPtr, grad_yPtr,
-                                           magnitudesPtr, bad_pixelsPtr);
+                                           tan_valuesPtr,
+                                           magnitudesPtr,
+                                           bad_pixelsPtr);
 }
 
 int main() {
     auto num_test = 10;
     auto opencv_gradient_img = test(opencv_angle_gradient,
                                     "opencv_angle_gradient",
-                                    num_test,
-                                    true);
+                                    num_test);
+
+    auto pytlsd_gradient_img = test(pytlsd_angle_gradient,
+                                    "pytlsd_angle_gradient",
+                                    num_test);
 
     double threshold = 5.2262518595055063;
     gradientCalculator = std::make_unique<GradientCalculator>(threshold);
     auto custom_gradient_img = test(custom_angle_gradient,
-                                     "custom_angle_gradientr",
+                                     "custom_angle_gradient",
                                      num_test);
 
 
-    auto diff = draw_image_diff(custom_gradient_img,
+    auto diff1 = draw_image_diff(custom_gradient_img,
                                  opencv_gradient_img,
-                                 "Custom Vs Opencv",
-                                 true);
+                                 "Custom Vs Opencv");
 
-    cv::Mat grad_color = draw_map(opencv_gradient_img);
+    auto diff2 = draw_image_diff(custom_gradient_img,
+                                    pytlsd_gradient_img,
+                                    "Custom Vs Pytlsd");
+
+    cv::Mat grad_opencv_color = draw_map(opencv_gradient_img, false);
+    cv::Mat grad_pytlsd_color = draw_map(pytlsd_gradient_img, false);
+    cv::Mat grad_custom_color = draw_map(custom_gradient_img, false);
+
+
     cv::Mat combined_diff;
-    cv::hconcat(grad_color, diff, combined_diff);
-    cv::hconcat(combined_diff, diff, combined_diff);
-    cv::imwrite("../../doc/img/gradient_diff.png", combined_diff);
+    cv::hconcat(grad_opencv_color, diff1, combined_diff);
+    cv::hconcat(combined_diff, diff2, combined_diff);
+//    cv::imwrite("../../doc/img/gradient_diff.png", combined_diff);
+    cv::imshow("Combined", combined_diff);
 
     cv::waitKey(0);
     return 0;
