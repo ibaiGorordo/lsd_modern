@@ -5,20 +5,21 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
-#include "RegionDetector.h"
 
-RegionDetector::RegionDetector(double ang_th) {
-    this->tan_th = std::abs(tan(ang_th * std::numbers::pi / 180));
-    p = ang_th / 180.0;
+#include "RegionDetector.h"
+#include "utils.h"
+
+RegionDetector::RegionDetector(double thres) {
+    ang_th = thres * std::numbers::pi / 180.0;
 }
 
-void RegionDetector::detect(const double *grad_x, const double *grad_y,
-                            const double *magnitudes, unsigned char *bad_pixels,
+void RegionDetector::detect(const double *angles,
+                            const double *magnitudes,
+                            unsigned char *bad_pixels,
                             int width, int height) {
     check_new_img_size(width, height);
 
-    grad_x_ptr = grad_x;
-    grad_y_ptr = grad_y;
+    angles_ptr = angles;
     magnitudes_ptr = magnitudes;
     used_pixels_ptr = bad_pixels;
 
@@ -32,6 +33,24 @@ void RegionDetector::detect(const double *grad_x, const double *grad_y,
 
 void RegionDetector::get_sorted_pixels()
 {
+
+    max_grad = 0;
+    for(int y = 0; y < img_height; y++)
+    {
+        auto row_start = y * img_width;
+        for(int x = 0; x < img_width; x++)
+        {
+            int index = row_start + x;
+            if(magnitudes_ptr[index] > max_grad)
+            {
+                max_grad = magnitudes_ptr[index];
+            }
+        }
+    }
+
+    quant_coeff = (double) num_bins / max_grad;
+
+
     sorted_pixels.clear();
 #pragma omp parallel for collapse(2)
     for(int y = 0; y < img_height; y++)
@@ -43,6 +62,8 @@ void RegionDetector::get_sorted_pixels()
             if(!used_pixels_ptr[index])
             {
                 auto quant_norm = static_cast<uint16_t>(magnitudes_ptr[index] * quant_coeff +0.5);
+                if (quant_norm == 0)
+                    continue;
                 sorted_pixels.emplace_back(x, y, quant_norm);
             }
         }
@@ -53,7 +74,8 @@ void RegionDetector::get_sorted_pixels()
 }
 
 void RegionDetector::search_regions() {
-    printf("First pixel: %d, %d\n", sorted_pixels[0].x, sorted_pixels[0].y);
+    region_count = 0;
+//    printf("First pixel: %d, %d\n", sorted_pixels[0].x, sorted_pixels[0].y);
     for(auto& point : sorted_pixels)
     {
         if(used_pixels_ptr[point.y * img_width + point.x])
@@ -63,39 +85,41 @@ void RegionDetector::search_regions() {
         region_grow(point.x, point.y);
 
         if(region_points.size() < min_reg_size) continue;
-        printf("Found region lsd of size %zu\n", region_points.size());
-        break;
+//        printf("region:%d, point: %d, %d, Found region lsd of size %zu\n",
+//               region_count, point.x, point.y, region_points.size());
+        region_count++;
     }
 
+    printf("Found %d regions\n", region_count);
 }
 
 void RegionDetector::region_grow(int x, int y) {
 
+
     register_point(x, y);
+    for(size_t i = 0; i < region_points.size(); i++) {
+        auto &point = region_points[i];
 
-    int xx_min = min_limit(x);
-    int xx_max = max_limit(x, img_width);
-    int yy_min = min_limit(y);
-    int yy_max = max_limit(y, img_height);
+        int xx_min = min_limit(point.x);
+        int xx_max = max_limit(point.x, img_width);
+        int yy_min = min_limit(point.y);
+        int yy_max = max_limit(point.y, img_height);
 
-#pragma omp parallel for collapse(2)
-    // Check the 8 neighbors
-    for(int y_neigh = yy_min; y_neigh <= yy_max; y_neigh++)
-    {
-        const auto row_start = y_neigh * img_width;
-        for(int x_neigh = xx_min; x_neigh <= xx_max; x_neigh++)
-        {
-            int index = row_start + x_neigh;
+        // Check the 8 neighbors
+        for (int y_neigh = yy_min; y_neigh <= yy_max; y_neigh++) {
+            const auto row_start = y_neigh * img_width;
+            for (int x_neigh = xx_min; x_neigh <= xx_max; x_neigh++) {
+                int index = row_start + x_neigh;
 
-            if (used_pixels_ptr[index]) continue;
+                if (used_pixels_ptr[index])
+                  continue;
 
-            auto dx_neigh = grad_x_ptr[index];
-            auto dy_neigh = grad_y_ptr[index];
+                const auto angle = angles_ptr[index];
 
-            if(!is_aligned(dx_neigh, dy_neigh, reg_dx, reg_dy, tan_th))
-                continue;
-
-            region_grow(x_neigh, y_neigh);
+                if (!is_aligned(angle, reg_angle, ang_th))
+                    continue;
+                register_point(x_neigh, y_neigh);
+            }
         }
     }
 }
@@ -106,71 +130,27 @@ void RegionDetector::check_new_img_size(int width, int height) {
 
     img_width = width;
     img_height = height;
-    auto log_nt = 5 * (std::log10(double(img_width)) + std::log10(double(img_height))) / 2 + std::log10(11.0);
-    min_reg_size = static_cast<int>(-log_nt / log10(p));
+    auto log_nt = 5 * (std::log10(double(img_width)) + std::log10(double(img_height))) / 2;
+    min_reg_size = static_cast<int>(-log_nt / std::log10(ang_th/std::numbers::pi));
 }
 
 void RegionDetector::register_point(int x, int y) {
     auto index = y * img_width + x;
-    auto dx = grad_x_ptr[index];
-    auto dy = grad_y_ptr[index];
-    reg_dx += dx;
-    reg_dy += dy;
+    auto angle = angles_ptr[index];
+    reg_dx += std::cos(angle);
+    reg_dy += std::sin(angle);
+    reg_angle = fast_atan2f((float) reg_dy, (float) reg_dx);
     auto norm = magnitudes_ptr[index];
-    region_points.emplace_back(x, y, dx, dy, norm);
+    region_points.emplace_back(x, y, angle, norm);
     used_pixels_ptr[index] = 1;
 }
 
-//bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
-//    // Instead of using the angles, use dx/dy and dx2/dy2 to avoid the expensive atan2
-//    auto dot = dx * dx2 + dy * dy2;
-//    auto cross = dx * dy2 - dy * dx2;
-//    auto tan = cross / dot;
-//    return std::abs(tan) <= tan_th;
-//}
+bool RegionDetector::is_aligned(double angle, double reg_angle, double threshold) {
 
-/** 3/2 pi */
-#define M_3_2_PI 4.71238898038
+    auto theta = reg_angle - angle;
+    theta = wrap_angle(theta);
 
-/** 2 pi */
-#define M_2__PI  6.28318530718
-
-bool RegionDetector::is_aligned(double dx, double dy, double dx2, double dy2, double tan_th) {
-
-    printf("dx: %f, dy: %f, dx2: %f, dy2: %f\n", dx, dy, dx2, dy2);
-
-    auto dot = dx * dx2 + dy * dy2;
-    auto cross = dx * dy2 - dy * dx2;
-    auto norm_cross = std::sqrt(cross * cross);
-    auto tan = norm_cross / dot;
-    auto theta_angle = std::atan(tan);
-
-
-    auto angle1 = std::atan2(dy, dx);
-    auto angle2 = std::atan2(dy2, dx2);
-
-    auto theta = angle2 - angle1;
-    double theta2 = theta;
-    if ( theta2 < 0.0 ) theta2 = -theta;
-    if ( theta2 > M_3_2_PI )
-    {
-        theta2 -= M_2__PI;
-        if ( theta2 < 0.0 ) theta2 = -theta2;
-    }
-
-//    if ( theta_angle < 0.0 ) theta_angle = -theta_angle;
-//    if ( theta_angle > M_3_2_PI )
-//    {
-//        theta_angle -= M_2__PI;
-//        if ( theta_angle < 0.0 ) theta_angle = -theta_angle;
-//    }
-
-
-    auto prec = M_PI * 22.5 / 180.0;
-
-    printf("angle1: %f, angle2: %f, theta: %f, theta2: %f, thetha_angle: %f, is smaller: %d, is smaller2: %d\n",
-           angle1, angle2, theta, theta2, theta_angle, theta2 < prec, theta_angle < prec);
-    return  theta < prec;
+    return  theta < threshold;
 }
 
 

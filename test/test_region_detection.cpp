@@ -68,68 +68,19 @@ void calculate_gradient()
         gradientCalculator = std::make_unique<GradientCalculator>(threshold);
     }
 
-    gradx_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, 0.0);
-    grady_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, 0.0);
     magnitude_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, 0.0);
-    ang_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, 0.0);
+    ang_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, -1024.0);
     bad_pixels_img = cv::Mat(resized_img.rows, resized_img.cols, CV_8U, 0.0);
 
     auto *imagePtr = reinterpret_cast<unsigned char *>(resized_img.data);
-    auto *grad_xPtr = reinterpret_cast<double *>(gradx_img.data);
-    auto *grad_yPtr = reinterpret_cast<double *>(grady_img.data);
     auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);
     auto *anglesPtr = reinterpret_cast<double *>(ang_img.data);
     auto *bad_pixelsPtr = reinterpret_cast<unsigned char *>(bad_pixels_img.data);
 
-    constexpr double DEG_TO_RADS = CV_PI / 180;
     gradientCalculator->calculateGradients(imagePtr,
                                            resized_img.cols, resized_img.rows,
-                                           grad_xPtr, grad_yPtr,
-                                           magnitudesPtr, bad_pixelsPtr);
-
-    // Calculate the ang img using the grad_x and grad_y
-    auto max_grad = 0.0;
-    for(int y = 0; y < resized_img.rows; ++y)
-    {
-        auto* angles_row = ang_img.ptr<double>(y);
-        for(int x = 0; x < resized_img.cols; ++x)
-        {
-            auto gx = grad_xPtr[y * resized_img.cols + x];
-            auto gy = grad_yPtr[y * resized_img.cols + x];
-            auto mag = magnitudesPtr[y * resized_img.cols + x];
-            if(mag > max_grad)
-            {
-                max_grad = mag;
-            }
-            if(bad_pixelsPtr[y * resized_img.cols + x] == 1)
-            {
-                angles_row[x] = -1024.0;
-                continue;
-            }
-            angles_row[x] = cv::fastAtan2(float(gx), float(-gy)) * DEG_TO_RADS;
-        }
-    }
-
-    // Compute histogram of gradient values
-    ordered_points.clear();
-    ordered_points.reserve(resized_img.rows * resized_img.cols);
-    int n_bins = 1024;
-    double bin_coef = (max_grad > 0) ? double(n_bins - 1) / max_grad : 0; // If all image is smooth, max_grad <= 0
-    for(int y = 0; y < resized_img.rows - 1; ++y)
-    {
-        const double* modgrad_row = magnitude_img.ptr<double>(y);
-        for(int x = 0; x < resized_img.cols - 1; ++x)
-        {
-            normPoint _point;
-            int i = int(modgrad_row[x] * bin_coef);
-            _point.p = cv::Point(x, y);
-            _point.norm = i;
-            ordered_points.push_back(_point);
-        }
-    }
-
-    // Sort
-    std::sort(ordered_points.begin(), ordered_points.end(), compare_norm);
+                                           anglesPtr, magnitudesPtr,
+                                           bad_pixelsPtr);
 }
 
 void test(const std::function<void()>& region_detect,
@@ -158,8 +109,7 @@ void test(const std::function<void()>& region_detect,
 
 void test_custom_region_detector()
 {
-    regionDetector->detect(gradx_img.ptr<double>(),
-                           grady_img.ptr<double>(),
+    regionDetector->detect(ang_img.ptr<double>(),
                            magnitude_img.ptr<double>(),
                            bad_pixels_img.ptr<unsigned char>(),
                            resized_img.cols, resized_img.rows);
@@ -171,6 +121,39 @@ void test_pytlsd_region_detector()
     struct point *reg;
     image_char used;
     image_double angles, modgrad;
+
+    auto max_grad = 0.0;
+    for(int y = 0; y < resized_img.rows; ++y)
+    {
+        const double* modgrad_row = magnitude_img.ptr<double>(y);
+        for(int x = 0; x < resized_img.cols; ++x)
+        {
+            if(modgrad_row[x] > max_grad)
+                max_grad = modgrad_row[x];
+        }
+    }
+
+    // Compute histogram of gradient values
+    ordered_points.clear();
+    ordered_points.reserve(resized_img.rows * resized_img.cols);
+    int n_bins = 1024;
+    double bin_coef = (max_grad > 0) ? double(n_bins - 1) / max_grad : 0; // If all image is smooth, max_grad <= 0
+    for(int y = 0; y < resized_img.rows - 1; ++y)
+    {
+        const double* modgrad_row = magnitude_img.ptr<double>(y);
+        for(int x = 0; x < resized_img.cols - 1; ++x)
+        {
+
+            normPoint _point;
+            int i = int(modgrad_row[x] * bin_coef);
+            _point.p = cv::Point(x, y);
+            _point.norm = i;
+            ordered_points.push_back(_point);
+        }
+    }
+
+    // Sort
+    std::sort(ordered_points.begin(), ordered_points.end(), compare_norm);
 
     auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);
     auto *anglesPtr = reinterpret_cast<double *>(ang_img.data);
@@ -189,20 +172,27 @@ void test_pytlsd_region_detector()
     auto logNT = 5.0 * ( log10( (double) ang_img.cols ) + log10( (double) ang_img.rows ) ) / 2.0;
     auto min_reg_size = (int) (-logNT / log10(p));
 
-    printf("First pixel: %d, %d\n", ordered_points[0].p.x, ordered_points[0].p.y);
-
+//    printf("First pixel: %d, %d\n", ordered_points[0].p.x, ordered_points[0].p.y);
+    auto region_count = 0;
     // Search for line segments
     for(size_t i = 0, points_size = ordered_points.size(); i < points_size; ++i) {
         const cv::Point2i &point = ordered_points[i].p;
-        if (bad_pixels_img.at<unsigned char>(point) == 1) continue;
-        region_grow(ordered_points[i].p.x, ordered_points[i].p.y, angles, reg, &reg_size, &reg_angle, used, prec);
+        if (bad_pixels_img.data[point.x + point.y * bad_pixels_img.cols] == 1)
+            continue;
+
+        if (used->data[point.x + point.y * used->xsize] == 1)
+            continue;
+
+        region_grow(point.x, point.y, angles, reg, &reg_size, &reg_angle, used, prec);
         if(reg_size>= min_reg_size)
         {
-            printf("Found region of size %d\n", reg_size);
+//            printf("region: %d, point: %d, %d, Found region of size %d\n", region_count, ordered_points[i].p.x, ordered_points[i].p.y, reg_size);
+            region_count++;
         }
-        break;
 
     }
+
+    printf("Found %d regions\n", region_count);
 
     free_image_char(used);
 }

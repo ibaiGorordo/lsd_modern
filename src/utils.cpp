@@ -27,3 +27,14 @@ float fast_atan2f(float y, float x) {
   if (y < 0) r = -r;
   return r;
 }
+
+double wrap_angle(double angle) {
+  double new_angle = angle;
+  if ( new_angle < 0.0 ) new_angle = -new_angle;
+  if ( new_angle > one_and_half_pi )
+  {
+    new_angle -= two_pi;
+    if ( new_angle < 0.0 ) new_angle = -new_angle;
+  }
+  return new_angle;
+}

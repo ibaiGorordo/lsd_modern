@@ -21,12 +21,11 @@ struct NormPoint {
 struct RegionPoint {
     int x;
     int y;
-    double dx;
-    double dy;
+    double angle;
     double norm;
 
     RegionPoint() = default;
-    explicit RegionPoint(int x, int y, double dx, double dy, double norm) : x(x), y(y), dx(dx), dy(dy), norm(norm) {}
+    explicit RegionPoint(int x, int y, double angle, double norm) : x(x), y(y), angle(angle), norm(norm) {}
 };
 
 class RegionDetector {
@@ -35,8 +34,7 @@ public:
     RegionDetector() = default;
     explicit RegionDetector(double threshold=22.5);
 
-    void detect(const double *grad_x,
-                const double *grad_y,
+    void detect(const double *angles,
                 const double *magnitudes,
                 unsigned char *bad_pixels,
                 int width, int height);
@@ -46,20 +44,20 @@ private:
     int img_width = 0;
     int img_height = 0;
 
-    double tan_th{};
-    double p{};
+    double ang_th{};
 
-    static constexpr uint16_t num_bins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
-    static constexpr uint16_t max_grad = 256;
-    static constexpr double quant_coeff = (double) num_bins / max_grad;
+    uint16_t num_bins = 1024; // 52 ~= 256/5.22 (gradient threshold)
+    double max_grad = 256;
+    double quant_coeff = (double) num_bins / max_grad;
     std::vector<NormPoint> sorted_pixels;
 
     std::vector<RegionPoint> region_points;
     double reg_dx{};
     double reg_dy{};
+    double reg_angle{};
+    int region_count = 0;
 
-    const double *grad_x_ptr{};
-    const double *grad_y_ptr{};
+    const double *angles_ptr{};
     const double *magnitudes_ptr{};
     unsigned char *used_pixels_ptr{};
 
@@ -72,7 +70,7 @@ private:
     void reset_region();
     void register_point(int x, int y);
 
-    static bool is_aligned(double dx, double dy, double dx2, double dy2, double tan_th);
+    static bool is_aligned(double angle, double reg_angle, double tan_th);
     static constexpr int min_limit(int x) { return x == 0 ? 0 : x - 1; }
     static constexpr int max_limit(int x, int max) { return x == max-1 ? max-1 : x + 1; }
 
