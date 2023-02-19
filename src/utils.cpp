@@ -22,19 +22,64 @@ float fast_atan2f(float y, float x) {
   r = r * s + t;
   r = r * c + a;
   /* Map to full circle */
-  if (ay > ax) r = 1.57079637f - r;
-  if (x < 0) r = 3.14159274f - r;
+  if (ay > ax) r = half_pi - r;
+  if (x < 0) r = pi - r;
   if (y < 0) r = -r;
   return r;
 }
 
-double wrap_angle(double angle) {
-  double new_angle = angle;
-  if ( new_angle < 0.0 ) new_angle = -new_angle;
-  if ( new_angle > one_and_half_pi )
-  {
-    new_angle -= two_pi;
-    if ( new_angle < 0.0 ) new_angle = -new_angle;
-  }
-  return new_angle;
+double fast_atan2d(double y, double x) {
+
+    double a, r, s, t, c, q, ax, ay, mx, mn;
+    ax = std::fabs(x);
+    ay = std::fabs(y);
+    mx = std::fmax(ay, ax);
+    mn = std::fmin(ay, ax);
+    a  = mn / mx;
+    /* Minimax polynomial approximation to atan(a) on [0,1] */
+    s = a * a;
+    c = s * a;
+    q = s * s;
+    r = 0.024840285 * q + 0.18681418;
+    t = -0.094097948 * q - 0.33213072;
+    r = r * s + t;
+    r = r * c + a;
+    /* Map to full circle */
+    if (ay > ax) r = half_pi - r;
+    if (x < 0) r = pi - r;
+    if (y < 0) r = -r;
+    return r;
+}
+
+double wrap_angle_signed(double angle, double limit) {
+    double new_angle = angle;
+    if ( new_angle < -limit ) new_angle += two_pi;
+    else if ( new_angle > limit ) new_angle -= two_pi;
+    return new_angle;
+}
+
+
+double wrap_angle(double angle, double limit) {
+    double new_angle = wrap_angle_signed(angle, limit);
+    if ( new_angle < 0 ) new_angle = -new_angle;
+    return new_angle;
+}
+
+
+double angle_diff_signed(const double& angle1, const double&angle2)
+{
+    const double diff = angle1 - angle2;
+    return wrap_angle_signed(diff);
+}
+
+double angle_diff(const double& angle1, const double& angle2)
+{
+    const double diff = angle1 - angle2;
+    return wrap_angle(diff);
+}
+
+double point_dist(const double& x1, const double& y1, const double& x2, const double& y2) {
+    const double dx = x2 - x1;
+    const double dy = y2 - y1;
+    return std::sqrt(dx*dx + dy*dy);
 }
