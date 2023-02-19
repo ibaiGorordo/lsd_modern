@@ -15,7 +15,7 @@ add_library(${lib_name}
             src/RegionDetector.cpp
             src/RegionDetector.h
             src/utils.cpp
-            src/utils.h)
+            src/utils.h src/RegionRect.cpp src/RegionRect.h src/RegionPoint.h)
 
 target_include_directories(${lib_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
