@@ -42,14 +42,15 @@ void RegionDetector::search_regions() {
         if(used_pixels_ptr[point.y * img_width + point.x])
             continue;
 
-        reset_region();
-        region_grow(point.x, point.y);
+        find_region(point.x, point.y, ang_th, min_reg_size);
 
-        if(region_points.size() < min_reg_size) continue;
-        region_rect = RegionRect(region_points, reg_angle, ang_th, ang_th_norm);
         refine_region();
 
-        
+        if(reg_density < density_th)
+            continue;
+
+        // Rect improve
+
         region_count++;
     }
 
@@ -57,14 +58,30 @@ void RegionDetector::search_regions() {
 }
 
 void RegionDetector::refine_region() {
-    reg_density = getRegionDensity(region_rect, region_points.size());
 
-    if(reg_density < density_th) return;
+    // Skip if already dense enough
+    if(reg_density >= density_th) return;
 
     // Try 1: Reduce angle tolerance
+    // Recalculate the angle threshold by averaging the angle difference of the region points
+    // near the seed point
+    auto new_ang_th = calculate_region_std_angle()*2;
+    auto seed_point = region_points[0];
+    find_region(seed_point.x, seed_point.y, new_ang_th, 2);
+
+    if(reg_density >= density_th) return;
 
     // Try 2: Reduce region radius
 }
+
+void RegionDetector::find_region(int x, int y, double angle_threrehold, int min_size) {
+    reset_region();
+    region_grow(x, y, angle_threrehold);
+    if(region_points.size() < min_size) return;
+    region_rect = RegionRect(region_points, reg_angle, angle_threrehold, ang_th_norm);
+    reg_density = getRegionDensity(region_rect, region_points.size());
+}
+
 
 void RegionDetector::get_sorted_pixels()
 {
@@ -90,7 +107,7 @@ void RegionDetector::get_sorted_pixels()
 }
 
 
-void RegionDetector::region_grow(int x, int y) {
+void RegionDetector::region_grow(int x, int y, double angle_threrehold) {
 
 
     register_point(x, y);
@@ -113,12 +130,41 @@ void RegionDetector::region_grow(int x, int y) {
 
                 const auto angle = angles_ptr[index];
 
-                if (!is_aligned(angle, reg_angle, ang_th))
+                if (!is_aligned(angle, reg_angle, angle_threrehold))
                     continue;
                 register_point(x_neigh, y_neigh);
             }
         }
     }
+}
+
+double RegionDetector::calculate_region_std_angle() {
+    RegionPoint seedPoint = region_points[0];
+    const auto seed_angle = seedPoint.angle;
+    const auto seed_x = seedPoint.x;
+    const auto seed_y = seedPoint.y;
+
+    double sum_angle = 0;
+    double squared_sum_angle = 0;
+    int count = 0;
+
+    for(auto& point : region_points)
+    {
+        reset_point(point);
+        if(point_dist(point.x, point.y, seed_x, seed_y) > region_rect.width)
+            continue;
+
+        auto angle = angle_diff_signed(point.angle, seed_angle);
+        sum_angle += angle;
+        squared_sum_angle += angle * angle;
+        count++;
+    }
+
+    if(count == 0) return 0;
+
+    auto mean_angle = sum_angle / count;
+    return std::sqrt((squared_sum_angle - 2 * mean_angle * sum_angle) /
+                                       count - mean_angle * mean_angle);
 }
 
 void RegionDetector::check_new_img_size(int width, int height) {
@@ -157,4 +203,7 @@ void RegionDetector::reset_region() {
     reg_angle = 0;
     reg_density = 0;
     region_rect = RegionRect();
+}
+void RegionDetector::reset_point(RegionPoint &point) {
+    used_pixels_ptr[point.y * img_width + point.x] = 0;
 }

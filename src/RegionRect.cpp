@@ -115,6 +115,7 @@ double calculateEigenValue(const InertiaMatrix &inertiaMatrix) {
 
 double getRegionDensity(const RegionRect &regionRect, size_t num_points) {
     const auto length = point_dist(regionRect.x1, regionRect.y1, regionRect.x2, regionRect.y2);
+    if (length < 1e-6) return 0;
 
     return static_cast<double>(num_points) / (length * regionRect.width);
 }

@@ -64,12 +64,15 @@ private:
 
 private:
     void search_regions();
-    void region_grow(int x, int y);
+    void find_region(int x, int y, double angle_threrehold, int min_size);
+    void refine_region();
+    void region_grow(int x, int y, double angle_threrehold);
     void get_sorted_pixels();
     void check_new_img_size(int width, int height);
     void reset_region();
     void register_point(int x, int y);
-    void refine_region();
+    double calculate_region_std_angle();
+    void reset_point(RegionPoint &point);
 
     static bool is_aligned(double angle, double reg_angle, double tan_th);
     static constexpr int min_limit(int x) { return x == 0 ? 0 : x - 1; }
