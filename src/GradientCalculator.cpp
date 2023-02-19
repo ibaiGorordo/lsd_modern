@@ -33,10 +33,10 @@ void GradientCalculator::calculateGradients(const unsigned char *image,
             }
             bad_pixels[index] = is_bad;
             magnitudes[index] = std::sqrt(norm)/2.0;
-            const auto dx_float = static_cast<float>(dx);
-            const auto dy_float = static_cast<float>(dy);
+            const auto dx_float = static_cast<double >(dx);
+            const auto dy_float = static_cast<double >(dy);
 
-            angles[index] = fast_atan2f(dx_float, -dy_float);
+            angles[index] = fast_atan2d(dx_float, -dy_float);
 
         }
     }
