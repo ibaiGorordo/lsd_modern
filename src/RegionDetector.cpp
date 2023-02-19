@@ -7,10 +7,13 @@
 #include <numbers>
 
 #include "RegionDetector.h"
+#include "RegionRect.h"
 #include "utils.h"
 
-RegionDetector::RegionDetector(double thres) {
-    ang_th = thres * std::numbers::pi / 180.0;
+RegionDetector::RegionDetector(double thres, double density_threshold) {
+    this->ang_th = thres * std::numbers::pi / 180.0;
+    this->ang_th_norm = thres / 180.0;
+    this->density_th = density_threshold;
 }
 
 void RegionDetector::detect(const double *angles,
@@ -29,6 +32,38 @@ void RegionDetector::detect(const double *angles,
     // Search regions
     search_regions();
 
+}
+
+void RegionDetector::search_regions() {
+    region_count = 0;
+
+    for(auto& point : sorted_pixels)
+    {
+        if(used_pixels_ptr[point.y * img_width + point.x])
+            continue;
+
+        reset_region();
+        region_grow(point.x, point.y);
+
+        if(region_points.size() < min_reg_size) continue;
+        region_rect = RegionRect(region_points, reg_angle, ang_th, ang_th_norm);
+        refine_region();
+
+        
+        region_count++;
+    }
+
+    printf("Found %d regions\n", region_count);
+}
+
+void RegionDetector::refine_region() {
+    reg_density = getRegionDensity(region_rect, region_points.size());
+
+    if(reg_density < density_th) return;
+
+    // Try 1: Reduce angle tolerance
+
+    // Try 2: Reduce region radius
 }
 
 void RegionDetector::get_sorted_pixels()
@@ -54,25 +89,6 @@ void RegionDetector::get_sorted_pixels()
     std::sort(sorted_pixels.begin(), sorted_pixels.end(), std::greater<>());
 }
 
-void RegionDetector::search_regions() {
-    region_count = 0;
-//    printf("First pixel: %d, %d\n", sorted_pixels[0].x, sorted_pixels[0].y);
-    for(auto& point : sorted_pixels)
-    {
-        if(used_pixels_ptr[point.y * img_width + point.x])
-            continue;
-
-        reset_region();
-        region_grow(point.x, point.y);
-
-        if(region_points.size() < min_reg_size) continue;
-//        printf("region:%d, point: %d, %d, Found region lsd of size %zu\n",
-//               region_count, point.x, point.y, region_points.size());
-        region_count++;
-    }
-
-    printf("Found %d regions\n", region_count);
-}
 
 void RegionDetector::region_grow(int x, int y) {
 
@@ -105,7 +121,6 @@ void RegionDetector::region_grow(int x, int y) {
     }
 }
 
-// TODO: log_nt is also used in nfa, so maybe get the log_nt as input instead of calculating it here and in nfa
 void RegionDetector::check_new_img_size(int width, int height) {
     if (img_width == width && img_height == height) return;
 
@@ -129,7 +144,7 @@ void RegionDetector::register_point(int x, int y) {
 bool RegionDetector::is_aligned(double angle, double reg_angle, double threshold) {
 
     auto theta = reg_angle - angle;
-    theta = wrap_angle(theta);
+    theta = wrap_angle(theta, pi_and_half);
 
     return  theta < threshold;
 }
@@ -139,8 +154,7 @@ void RegionDetector::reset_region() {
     region_points.clear();
     reg_dx = 0;
     reg_dy = 0;
+    reg_angle = 0;
+    reg_density = 0;
+    region_rect = RegionRect();
 }
-
-
-
-

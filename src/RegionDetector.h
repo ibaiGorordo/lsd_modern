@@ -5,6 +5,11 @@
 #ifndef TEST_REGIONDETECTOR_H
 #define TEST_REGIONDETECTOR_H
 
+#include <vector>
+
+#include "RegionPoint.h"
+#include "RegionRect.h"
+
 struct NormPoint {
     int x;
     int y;
@@ -18,21 +23,12 @@ struct NormPoint {
     }
 };
 
-struct RegionPoint {
-    int x;
-    int y;
-    double angle;
-    double norm;
-
-    RegionPoint() = default;
-    explicit RegionPoint(int x, int y, double angle, double norm) : x(x), y(y), angle(angle), norm(norm) {}
-};
 
 class RegionDetector {
 
 public:
     RegionDetector() = default;
-    explicit RegionDetector(double threshold=22.5);
+    explicit RegionDetector(double threshold=22.5, double density_threshold=0.7);
 
     void detect(const double *angles,
                 const double *magnitudes,
@@ -45,6 +41,8 @@ private:
     int img_height = 0;
 
     double ang_th{};
+    double ang_th_norm{};
+    double density_th{};
 
     static constexpr uint16_t num_bins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
     static constexpr uint16_t max_grad = 256;
@@ -55,6 +53,8 @@ private:
     double reg_dx{};
     double reg_dy{};
     double reg_angle{};
+    double reg_density{};
+    RegionRect region_rect;
     int region_count = 0;
 
     const double *angles_ptr{};
@@ -69,6 +69,7 @@ private:
     void check_new_img_size(int width, int height);
     void reset_region();
     void register_point(int x, int y);
+    void refine_region();
 
     static bool is_aligned(double angle, double reg_angle, double tan_th);
     static constexpr int min_limit(int x) { return x == 0 ? 0 : x - 1; }
