@@ -11,123 +11,90 @@
 #include "utils.h"
 
 RegionDetector::RegionDetector(double thres, double density_threshold) {
-    this->angTh = thres * std::numbers::pi / 180.0;
-    this->angThNorm = thres / 180.0;
-    this->densityTh = density_threshold;
+    this->ang_th = thres * std::numbers::pi / 180.0;
+    this->ang_th_norm = thres / 180.0;
+    this->density_th = density_threshold;
 }
 
 void RegionDetector::detect(const double *angles,
                             const double *magnitudes,
                             unsigned char *bad_pixels,
                             int width, int height) {
-    checkNewImgSize(width, height);
+    check_new_img_size(width, height);
 
-    anglesPtr = angles;
-    magnitudesPtr = magnitudes;
-    usedPixelsPtr = bad_pixels;
+    angles_ptr = angles;
+    magnitudes_ptr = magnitudes;
+    used_pixels_ptr = bad_pixels;
 
     // Get the sorted pixel coordinates bsaed on the magnitude that are not bad pixels
-    getSortedPixels();
+    get_sorted_pixels();
 
     // Search regions
-    searchRegions();
+    search_regions();
 
 }
 
-void RegionDetector::searchRegions() {
-    regionCount = 0;
+void RegionDetector::search_regions() {
+    region_count = 0;
 
     for(auto& point : sorted_pixels)
     {
-        if(usedPixelsPtr[point.y * imgWidth + point.x])
+        if(used_pixels_ptr[point.y * img_width + point.x])
             continue;
 
-        findRegion(point.x, point.y, angTh, minRegSize);
+        find_region(point.x, point.y, ang_th, min_reg_size);
 
-//        refineRegion();
+//        refine_region();
 
-        if(regDensity < densityTh) continue;
+        if(reg_density < density_th)
+            continue;
 
         // Rect improve
 
-
-        regionCount++;
+        region_count++;
     }
 
-    printf("Found %d regions\n", regionCount);
+    printf("Found %d regions\n", region_count);
 }
 
-void RegionDetector::refineRegion() {
+void RegionDetector::refine_region() {
 
     // Skip if already dense enough
-    if(regDensity >= densityTh) return;
+    if(reg_density >= density_th) return;
 
     // Try 1: Reduce angle tolerance
     // Recalculate the angle threshold by averaging the angle difference of the region points
     // near the seed point
-    auto newAngTh = calculateRegionStdAngle()*2;
-    auto seedPoint = region_points[0];
-    findRegion(seedPoint.x, seedPoint.y, newAngTh, 2);
+    auto new_ang_th = calculate_region_std_angle()*2;
+    auto seed_point = region_points[0];
+    find_region(seed_point.x, seed_point.y, new_ang_th, 2);
 
-    if(regDensity >= densityTh || !regionFound) return;
+    if(reg_density >= density_th) return;
 
     // Try 2: Reduce region radius
-
-    // Compute the region radius
-    auto xCenter = static_cast<double>(region_points[0].x);
-    auto yCenter = static_cast<double>(region_points[0].y);
-    auto radSq1 = point_dist_squared(xCenter, yCenter, regionRect.x1, regionRect.y1);
-    auto radSq2 = point_dist_squared(xCenter, yCenter, regionRect.x2, regionRect.y2);
-    auto radSq = radSq1 > radSq2 ? radSq1 : radSq2;
-
-    while(regDensity < densityTh)
-    {
-        // Reduce the region radius
-        radSq *= refineCoeffSq;
-
-        // Set points outside the radius to as not valid
-        for(auto& point : region_points)
-        {
-            if(point_dist_squared(xCenter, yCenter, point.x, point.y) > radSq)
-            {
-//                point.valid = false;
-                resetPoint(point);
-            }
-        }
-
-        // Check min region size 2
-        if(region_points.size() < 2) return;
-
-        calculateRect();
-    }
 }
 
-void RegionDetector::calculateRect() {
-    regionRect = RegionRect(region_points, regAngle, angTh, angThNorm);
-    regDensity = getRegionDensity(regionRect, region_points.size());
-}
-
-void RegionDetector::findRegion(int x, int y, double angleThreshold, int min_size) {
-    resetRegion();
-    regionGrow(x, y, angleThreshold);
+void RegionDetector::find_region(int x, int y, double angle_threrehold, int min_size) {
+    reset_region();
+    region_grow(x, y, angle_threrehold);
     if(region_points.size() < min_size) return;
-    regionFound = true;
-    calculateRect();
+    region_rect = RegionRect(region_points, reg_angle, angle_threrehold, ang_th_norm);
+    reg_density = getRegionDensity(region_rect, region_points.size());
 }
 
 
-void RegionDetector::getSortedPixels()
+void RegionDetector::get_sorted_pixels()
 {
     sorted_pixels.clear();
-    for(int y = 0; y < imgHeight; y++)
+    for(int y = 0; y < img_height; y++)
     {
-        auto row_start = y * imgWidth;
-        for(int x = 0; x < imgWidth; x++)
+        auto row_start = y * img_width;
+        for(int x = 0; x < img_width; x++)
         {
             int index = row_start + x;
-            if(!usedPixelsPtr[index])
+            if(!used_pixels_ptr[index])
             {
-                auto quant_norm = static_cast<uint16_t>(magnitudesPtr[index] * quantCoeff +0.5);
+                auto quant_norm = static_cast<uint16_t>(magnitudes_ptr[index] * quant_coeff +0.5);
                 if (quant_norm == 0)
                     continue;
                 sorted_pixels.emplace_back(x, y, quant_norm);
@@ -140,38 +107,38 @@ void RegionDetector::getSortedPixels()
 }
 
 
-void RegionDetector::regionGrow(int x, int y, double angle_threrehold) {
+void RegionDetector::region_grow(int x, int y, double angle_threrehold) {
 
 
-    registerPoint(x, y);
+    register_point(x, y);
     for(size_t i = 0; i < region_points.size(); i++) {
         auto &point = region_points[i];
 
-        int xx_min = minLimit(point.x);
-        int xx_max = maxLimit(point.x, imgWidth);
-        int yy_min = minLimit(point.y);
-        int yy_max = maxLimit(point.y, imgHeight);
+        int xx_min = min_limit(point.x);
+        int xx_max = max_limit(point.x, img_width);
+        int yy_min = min_limit(point.y);
+        int yy_max = max_limit(point.y, img_height);
 
         // Check the 8 neighbors
         for (int y_neigh = yy_min; y_neigh <= yy_max; y_neigh++) {
-            const auto row_start = y_neigh * imgWidth;
+            const auto row_start = y_neigh * img_width;
             for (int x_neigh = xx_min; x_neigh <= xx_max; x_neigh++) {
                 int index = row_start + x_neigh;
 
-                if (usedPixelsPtr[index])
+                if (used_pixels_ptr[index])
                   continue;
 
-                const auto angle = anglesPtr[index];
+                const auto angle = angles_ptr[index];
 
-                if (!isAligned(angle, regAngle, angle_threrehold))
+                if (!is_aligned(angle, reg_angle, angle_threrehold))
                     continue;
-                registerPoint(x_neigh, y_neigh);
+                register_point(x_neigh, y_neigh);
             }
         }
     }
 }
 
-double RegionDetector::calculateRegionStdAngle() {
+double RegionDetector::calculate_region_std_angle() {
     RegionPoint seedPoint = region_points[0];
     const auto seed_angle = seedPoint.angle;
     const auto seed_x = seedPoint.x;
@@ -183,8 +150,8 @@ double RegionDetector::calculateRegionStdAngle() {
 
     for(auto& point : region_points)
     {
-        resetPoint(point);
-        if(point_dist(point.x, point.y, seed_x, seed_y) > regionRect.width)
+        reset_point(point);
+        if(point_dist(point.x, point.y, seed_x, seed_y) > region_rect.width)
             continue;
 
         auto angle = angle_diff_signed(point.angle, seed_angle);
@@ -200,27 +167,27 @@ double RegionDetector::calculateRegionStdAngle() {
                                        count - mean_angle * mean_angle);
 }
 
-void RegionDetector::checkNewImgSize(int width, int height) {
-    if (imgWidth == width && imgHeight == height) return;
+void RegionDetector::check_new_img_size(int width, int height) {
+    if (img_width == width && img_height == height) return;
 
-    imgWidth = width;
-    imgHeight = height;
-    auto log_nt = 5 * (std::log10(double(imgWidth)) + std::log10(double(imgHeight))) / 2;
-    minRegSize = static_cast<int>(-log_nt / std::log10(angTh /std::numbers::pi));
+    img_width = width;
+    img_height = height;
+    auto log_nt = 5 * (std::log10(double(img_width)) + std::log10(double(img_height))) / 2;
+    min_reg_size = static_cast<int>(-log_nt / std::log10(ang_th/std::numbers::pi));
 }
 
-void RegionDetector::registerPoint(int x, int y) {
-    auto index = y * imgWidth + x;
-    auto angle = anglesPtr[index];
-    regDx += std::cos(angle);
-    regDy += std::sin(angle);
-    regAngle = fast_atan2f((float) regDy, (float) regDx);
-    auto norm = magnitudesPtr[index];
+void RegionDetector::register_point(int x, int y) {
+    auto index = y * img_width + x;
+    auto angle = angles_ptr[index];
+    reg_dx += std::cos(angle);
+    reg_dy += std::sin(angle);
+    reg_angle = fast_atan2f((float) reg_dy, (float) reg_dx);
+    auto norm = magnitudes_ptr[index];
     region_points.emplace_back(x, y, angle, norm);
-    usedPixelsPtr[index] = 1;
+    used_pixels_ptr[index] = 1;
 }
 
-bool RegionDetector::isAligned(double angle, double reg_angle, double threshold) {
+bool RegionDetector::is_aligned(double angle, double reg_angle, double threshold) {
 
     auto theta = reg_angle - angle;
     theta = wrap_angle(theta, pi_and_half);
@@ -229,15 +196,14 @@ bool RegionDetector::isAligned(double angle, double reg_angle, double threshold)
 }
 
 
-void RegionDetector::resetRegion() {
+void RegionDetector::reset_region() {
     region_points.clear();
-    regionFound = false;
-    regDx = 0;
-    regDy = 0;
-    regAngle = 0;
-    regDensity = 0;
-    regionRect = RegionRect();
+    reg_dx = 0;
+    reg_dy = 0;
+    reg_angle = 0;
+    reg_density = 0;
+    region_rect = RegionRect();
 }
-void RegionDetector::resetPoint(RegionPoint &point) {
-    usedPixelsPtr[point.y * imgWidth + point.x] = 0;
+void RegionDetector::reset_point(RegionPoint &point) {
+    used_pixels_ptr[point.y * img_width + point.x] = 0;
 }
