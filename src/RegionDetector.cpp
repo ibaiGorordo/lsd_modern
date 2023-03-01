@@ -46,8 +46,8 @@ void RegionDetector::searchRegions() {
 
         if (!regionFound) continue ;
 
-//        refineRegion();
-//        if(regDensity < densityTh) continue;
+        refineRegion();
+        if(regDensity < densityTh) continue;
 
         // Rect improve
 

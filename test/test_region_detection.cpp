@@ -158,14 +158,17 @@ void test_pytlsd_region_detector()
     auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);
     auto *anglesPtr = reinterpret_cast<double *>(ang_img.data);
     angles = new_image_double_ptr(resized_img.cols, resized_img.rows, anglesPtr);
+    modgrad = new_image_double_ptr(resized_img.cols, resized_img.rows, magnitudesPtr);
     used = new_image_char_ini(ang_img.cols, ang_img.rows, 0);
 
     reg = (struct point *) calloc( (size_t) (ang_img.cols * ang_img.rows), sizeof(struct point) );
     int reg_size;
     double reg_angle, prec;
+    struct rect rec;
 
     /* angle tolerance */
     auto ang_th = 22.5;
+    auto density_th = 0.7;
     auto p = ang_th / 180.0;
     prec = M_PI * ang_th / 180.0;
 
@@ -184,12 +187,16 @@ void test_pytlsd_region_detector()
             continue;
 
         region_grow(point.x, point.y, angles, reg, &reg_size, &reg_angle, used, prec);
-        if(reg_size>= min_reg_size)
-        {
-//            printf("region: %d, point: %d, %d, Found region of size %d\n", region_count, ordered_points[i].p.x, ordered_points[i].p.y, reg_size);
-            region_count++;
-        }
+        /* reject small regions */
+        if ( reg_size < min_reg_size ) continue;
 
+        /* construct rectangular approximation for the region */
+        region2rect(reg, reg_size, modgrad, reg_angle, prec, p, &rec);
+        
+        if ( !refine( reg, &reg_size, modgrad, reg_angle,
+                    prec, p, &rec, used, angles, density_th ) ) continue;
+
+        region_count++;
     }
 
     printf("Found %d regions\n", region_count);
