@@ -10,6 +10,7 @@ struct RegionPoint {
   int y;
   double angle;
   double norm;
+  bool valid = true;
 
   RegionPoint() = default;
   explicit RegionPoint(int x, int y, double angle, double norm) : x(x), y(y), angle(angle), norm(norm) {}

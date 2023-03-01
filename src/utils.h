@@ -18,6 +18,8 @@ double wrap_angle_signed(double angle, double limit = pi);
 double wrap_angle(double angle, double limit = pi);
 double angle_diff_signed(const double& angle1, const double& angle2);
 double angle_diff(const double& angle1, const double& angle2);
+
+double point_dist_squared(const double& x1, const double& y1, const double& x2, const double& y2);
 double point_dist(const double& x1, const double& y1, const double& x2, const double& y2);
 
 

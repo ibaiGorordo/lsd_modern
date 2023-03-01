@@ -34,6 +34,8 @@ Centroid getRegCentroid(const std::vector<RegionPoint> &region_points) {
 
     double sum_norm = 0;
     for (const auto &region_point : region_points) {
+        if(!region_point.valid) continue;
+
         const auto norm = region_point.norm;
         sum_norm += norm;
         centroid.x += region_point.x * norm;
@@ -73,6 +75,8 @@ RegionSize getRegionSize(const std::vector<RegionPoint> &regionPoints,
     RegionSize regionSize;
 
     for (const auto &region_point : regionPoints) {
+        if(!region_point.valid) continue;
+
         const auto regdx = region_point.x - centroid.x;
         const auto regdy = region_point.y - centroid.y;
         const auto l = regdx * dx + regdy * dy;
@@ -93,6 +97,8 @@ InertiaMatrix getInertiaMatrix(const std::vector<RegionPoint> &regionPoints,
     InertiaMatrix inertia_matrix;
 
     for (const auto &region_point : regionPoints) {
+        if(!region_point.valid) continue;
+
         const auto norm = region_point.norm;
         const auto regx = region_point.x;
         const auto regy = region_point.y;

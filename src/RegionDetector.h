@@ -36,47 +36,51 @@ public:
                 int width, int height);
 
 private:
-    int min_reg_size{};
-    int img_width = 0;
-    int img_height = 0;
+    int minRegSize{};
+    int imgWidth = 0;
+    int imgHeight = 0;
 
-    double ang_th{};
-    double ang_th_norm{};
-    double density_th{};
+    double angTh{};
+    double angThNorm{};
+    double densityTh{};
 
-    static constexpr uint16_t num_bins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
-    static constexpr uint16_t max_grad = 256;
-    static constexpr double quant_coeff = (double) num_bins / max_grad;
+    static constexpr uint16_t numBins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
+    static constexpr uint16_t maxGrad = 256;
+    static constexpr double quantCoeff = (double) numBins / maxGrad;
+    static constexpr double refineCoeffSq = 0.75*0.75;
     std::vector<NormPoint> sorted_pixels;
 
     std::vector<RegionPoint> region_points;
-    double reg_dx{};
-    double reg_dy{};
-    double reg_angle{};
-    double reg_density{};
-    RegionRect region_rect;
-    int region_count = 0;
+    double regDx{};
+    double regDy{};
+    double regAngle{};
+    double regDensity{};
+    bool regionFound{};
+    RegionRect regionRect;
+    int regionCount = 0;
 
-    const double *angles_ptr{};
-    const double *magnitudes_ptr{};
-    unsigned char *used_pixels_ptr{};
+    const double *anglesPtr{};
+    const double *magnitudesPtr{};
+    unsigned char *usedPixelsPtr{};
 
 
 private:
-    void search_regions();
-    void find_region(int x, int y, double angle_threrehold, int min_size);
-    void refine_region();
-    void region_grow(int x, int y, double angle_threrehold);
-    void get_sorted_pixels();
-    void check_new_img_size(int width, int height);
-    void reset_region();
-    void register_point(int x, int y);
-    double calculate_region_std_angle();
-    void reset_point(RegionPoint &point);
+    void searchRegions();
+    void findRegion(int x, int y, double angleThreshold, int min_size);
+    void refineRegion();
+    void regionGrow(int x, int y, double angle_threrehold);
+    void calculateRect();
+    void getSortedPixels();
+    void checkNewImgSize(int width, int height);
+    void resetRegion();
+    void registerPoint(int x, int y);
+    double calculateRegionStdAngle();
+    void resetPoint(RegionPoint &point);
 
-    static bool is_aligned(double angle, double reg_angle, double tan_th);
-    static constexpr int min_limit(int x) { return x == 0 ? 0 : x - 1; }
-    static constexpr int max_limit(int x, int max) { return x == max-1 ? max-1 : x + 1; }
+    static bool isAligned(double angle, double reg_angle, double tan_th);
+    static constexpr int minLimit(int x) { return x == 0 ? 0 : x - 1; }
+    static constexpr int maxLimit(int x, int max) { return x == max-1 ? max-1 : x + 1; }
+
 
 };
 

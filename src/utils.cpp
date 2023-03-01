@@ -78,8 +78,12 @@ double angle_diff(const double& angle1, const double& angle2)
     return wrap_angle(diff);
 }
 
-double point_dist(const double& x1, const double& y1, const double& x2, const double& y2) {
+double point_dist_squared(const double& x1, const double& y1, const double& x2, const double& y2) {
     const double dx = x2 - x1;
     const double dy = y2 - y1;
-    return std::sqrt(dx*dx + dy*dy);
+    return dx*dx + dy*dy;
+}
+
+double point_dist(const double& x1, const double& y1, const double& x2, const double& y2) {
+    return std::sqrt(point_dist_squared(x1, y1, x2, y2));
 }
