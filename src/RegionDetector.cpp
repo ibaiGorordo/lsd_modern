@@ -47,7 +47,6 @@ void RegionDetector::searchRegions() {
         if (!regionFound) continue ;
 
 //        refineRegion();
-
 //        if(regDensity < densityTh) continue;
 
         // Rect improve
@@ -92,7 +91,7 @@ void RegionDetector::refineRegion() {
         {
             if(point_dist_squared(xCenter, yCenter, point.x, point.y) > radSq)
             {
-//                point.valid = false;
+                point.valid = false;
                 resetPoint(point);
             }
         }
