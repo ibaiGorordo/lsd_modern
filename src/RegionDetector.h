@@ -56,6 +56,7 @@ private:
     double regAngle{};
     double regDensity{};
     bool regionFound{};
+    int regionSize{};
     RegionRect regionRect;
     int regionCount = 0;
 

@@ -43,7 +43,6 @@ void RegionDetector::searchRegions() {
             continue;
 
         findRegion(point.x, point.y, angTh, minRegSize);
-
         if (!regionFound) continue ;
 
         refineRegion();
@@ -89,11 +88,14 @@ void RegionDetector::refineRegion() {
         // Set points outside the radius to as not valid
         for(auto& point : region_points)
         {
-            if(point_dist_squared(xCenter, yCenter, point.x, point.y) > radSq)
-            {
-                point.valid = false;
-                resetPoint(point);
-            }
+            if(!point.valid) continue;
+
+            if (point_dist_squared(xCenter, yCenter, point.x, point.y) <= radSq)
+                continue;
+
+            point.valid = false;
+            regionSize--;
+            resetPoint(point);
         }
 
         // Check min region size 2
@@ -105,7 +107,7 @@ void RegionDetector::refineRegion() {
 
 void RegionDetector::calculateRect() {
     regionRect = RegionRect(region_points, regAngle, angTh, angThNorm);
-    regDensity = getRegionDensity(regionRect, region_points.size());
+    regDensity = getRegionDensity(regionRect, regionSize);
 }
 
 void RegionDetector::findRegion(int x, int y, double angleThreshold, int min_size) {
@@ -120,10 +122,10 @@ void RegionDetector::findRegion(int x, int y, double angleThreshold, int min_siz
 void RegionDetector::getSortedPixels()
 {
     sorted_pixels.clear();
-    for(int y = 0; y < imgHeight; y++)
+    for(int y = 0; y < imgHeight-1; y++)
     {
         auto row_start = y * imgWidth;
-        for(int x = 0; x < imgWidth; x++)
+        for(int x = 0; x < imgWidth-1; x++)
         {
             int index = row_start + x;
             if(!usedPixelsPtr[index])
@@ -175,8 +177,8 @@ void RegionDetector::regionGrow(int x, int y, double angle_threrehold) {
 double RegionDetector::calculateRegionStdAngle() {
     RegionPoint seedPoint = region_points[0];
     const auto seed_angle = seedPoint.angle;
-    const auto seed_x = seedPoint.x;
-    const auto seed_y = seedPoint.y;
+    const auto seed_x = 463;//seedPoint.x;
+    const auto seed_y = 401;//seedPoint.y;
 
     double sum_angle = 0;
     double squared_sum_angle = 0;
@@ -185,7 +187,7 @@ double RegionDetector::calculateRegionStdAngle() {
     for(auto& point : region_points)
     {
         resetPoint(point);
-        if(point_dist(point.x, point.y, seed_x, seed_y) > regionRect.width)
+        if(point_dist( seed_x, seed_y, point.x, point.y) > regionRect.width)
             continue;
 
         auto angle = angle_diff_signed(point.angle, seed_angle);
@@ -198,7 +200,7 @@ double RegionDetector::calculateRegionStdAngle() {
 
     auto mean_angle = sum_angle / count;
     return std::sqrt((squared_sum_angle - 2 * mean_angle * sum_angle) /
-                                       count - mean_angle * mean_angle);
+                                       count + mean_angle * mean_angle);
 }
 
 void RegionDetector::checkNewImgSize(int width, int height) {
@@ -218,6 +220,7 @@ void RegionDetector::registerPoint(int x, int y) {
     regAngle = fast_atan2f((float) regDy, (float) regDx);
     auto norm = magnitudesPtr[index];
     region_points.emplace_back(x, y, angle, norm);
+    regionSize++;
     usedPixelsPtr[index] = 1;
 }
 
@@ -233,6 +236,7 @@ bool RegionDetector::isAligned(double angle, double reg_angle, double threshold)
 void RegionDetector::resetRegion() {
     region_points.clear();
     regionFound = false;
+    regionSize = 0;
     regDx = 0;
     regDy = 0;
     regAngle = 0;

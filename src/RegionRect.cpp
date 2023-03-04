@@ -57,6 +57,7 @@ double getRegAngle(const std::vector<RegionPoint> &region_points,
                             double prec) {
 
     const auto inertiaMatrix = getInertiaMatrix(region_points, centroid);
+
     const auto eigen_value = calculateEigenValue(inertiaMatrix);
 
     double angle = std::fabs(inertiaMatrix.Ixx) > std::fabs(inertiaMatrix.Iyy) ?
@@ -113,10 +114,11 @@ InertiaMatrix getInertiaMatrix(const std::vector<RegionPoint> &regionPoints,
 }
 double calculateEigenValue(const InertiaMatrix &inertiaMatrix) {
 
-    return 0.5 * (inertiaMatrix.Ixx + inertiaMatrix.Iyy +
-                  std::sqrt((inertiaMatrix.Ixx - inertiaMatrix.Iyy) *
-                       (inertiaMatrix.Ixx - inertiaMatrix.Iyy) +
-                       4 * inertiaMatrix.Ixy * inertiaMatrix.Ixy));
+    const auto Ixx = inertiaMatrix.Ixx;
+    const auto Iyy = inertiaMatrix.Iyy;
+    const auto Ixy = inertiaMatrix.Ixy;
+
+    return 0.5 * ( Ixx + Iyy - sqrt( (Ixx - Iyy) * (Ixx - Iyy) + 4.0 * Ixy * Ixy ) );
 }
 
 double getRegionDensity(const RegionRect &regionRect, size_t num_points) {
