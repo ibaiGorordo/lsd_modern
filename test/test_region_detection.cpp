@@ -28,9 +28,9 @@ static inline bool compare_norm( const normPoint& n1, const normPoint& n2 )
 std::unique_ptr<GradientCalculator> gradientCalculator;
 std::unique_ptr<RegionDetector> regionDetector;
 std::vector<normPoint> ordered_points;
-
-cv::Mat gradx_img, grady_img, magnitude_img, ang_img, bad_pixels_img, resized_img;
-
+cv::Ptr<cv::LineSegmentDetector> lsd_cv;
+cv::Mat magnitude_img, ang_img, bad_pixels_img, resized_img;
+cv::Mat gray_img;
 
 cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
 {
@@ -87,7 +87,7 @@ void test(const std::function<void()>& region_detect,
           const std::string& func_name,
           int num_tests)
 {
-    cv::Mat gray_img = cv::imread("assets/bathroom.jpg",
+    gray_img = cv::imread("assets/bathroom.jpg",
                                   cv::IMREAD_GRAYSCALE);
 
     resized_img = gaussian_resize(gray_img);
@@ -180,6 +180,7 @@ void test_pytlsd_region_detector()
     // Search for line segments
     for(size_t i = 0, points_size = ordered_points.size(); i < points_size; ++i) {
         const cv::Point2i &point = ordered_points[i].p;
+
         if (bad_pixels_img.data[point.x + point.y * bad_pixels_img.cols] == 1)
             continue;
 
@@ -192,9 +193,11 @@ void test_pytlsd_region_detector()
 
         /* construct rectangular approximation for the region */
         region2rect(reg, reg_size, modgrad, reg_angle, prec, p, &rec);
-        
-        if ( !refine( reg, &reg_size, modgrad, reg_angle,
-                    prec, p, &rec, used, angles, density_th ) ) continue;
+
+        auto good_region = refine( reg, &reg_size, modgrad, reg_angle,
+                    prec, p, &rec, used, angles, density_th ) ;
+
+        if (!good_region) continue;
 
         region_count++;
     }
@@ -204,13 +207,24 @@ void test_pytlsd_region_detector()
     free_image_char(used);
 }
 
+void test_opencv_region_detector()
+{
+    std::vector<cv::Vec4f> lines_cv;
+    lsd_cv->detect(gray_img, lines_cv);
+    printf("Found %zu lines\n", lines_cv.size());
+}
+
 int main() {
 
     auto num_test = 1;
     auto ang_thres = 22.5;
     regionDetector = std::make_unique<RegionDetector>(ang_thres);
+
+    lsd_cv = cv::createLineSegmentDetector(cv::LSD_REFINE_STD);
+
     test(test_pytlsd_region_detector, "pytlsd_region_detector", num_test);
     test(test_custom_region_detector, "custom_region_detector", num_test);
+    test(test_opencv_region_detector, "opencv_region_detector", num_test);
 
     auto magnitude_color = draw_map(ang_img, false);
     cv::namedWindow("magnitude", cv::WINDOW_NORMAL);
