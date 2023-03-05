@@ -6,6 +6,7 @@
 #include <cmath>
 #include <numbers>
 
+#include "PixelSorter.h"
 #include "RegionDetector.h"
 #include "RegionRect.h"
 #include "utils.h"
@@ -27,7 +28,7 @@ void RegionDetector::detect(const double *angles,
     usedPixelsPtr = bad_pixels;
 
     // Get the sorted pixel coordinates bsaed on the magnitude that are not bad pixels
-    getSortedPixels();
+    PixelSorter::sort(sorted_pixels, magnitudesPtr, usedPixelsPtr, imgWidth, imgHeight);
 
     // Search regions
     searchRegions();
@@ -116,30 +117,6 @@ void RegionDetector::findRegion(int x, int y, double angleThreshold, int min_siz
     if(region_points.size() < min_size) return;
     regionFound = true;
     calculateRect();
-}
-
-
-void RegionDetector::getSortedPixels()
-{
-    sorted_pixels.clear();
-    for(int y = 0; y < imgHeight-1; y++)
-    {
-        auto row_start = y * imgWidth;
-        for(int x = 0; x < imgWidth-1; x++)
-        {
-            int index = row_start + x;
-            if(!usedPixelsPtr[index])
-            {
-                auto quant_norm = static_cast<uint16_t>(magnitudesPtr[index] * quantCoeff +0.5);
-                if (quant_norm == 0)
-                    continue;
-                sorted_pixels.emplace_back(x, y, quant_norm);
-            }
-        }
-    }
-
-    // Sort in descending order
-    std::sort(sorted_pixels.begin(), sorted_pixels.end(), std::greater<>());
 }
 
 

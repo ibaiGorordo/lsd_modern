@@ -6,10 +6,10 @@
 #define TEST_REGIONPOINT_H
 
 struct RegionPoint {
-  int x;
-  int y;
-  double angle;
-  double norm;
+  int x{};
+  int y{};
+  double angle{};
+  double norm{};
   bool valid = true;
 
   RegionPoint() = default;

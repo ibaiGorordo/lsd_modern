@@ -5,52 +5,13 @@
 #include <opencv2/opencv.hpp>
 
 #include "GradientCalculator.h"
+#include "test_utils.h"
 
 using namespace std::chrono;
 
 std::unique_ptr<GradientCalculator> gradientCalculator;
 cv::Mat bad_pixels;
 
-cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
-{
-    cv::Mat adjMap;
-    double min, max;
-    cv::minMaxLoc(mat, &min, &max);
-
-    printf("min diff: %f, max diff: %f\n", min, max);
-
-    if (!use_min) min = 0;
-
-    if(max-min < 1e-6)
-    {
-      mat.convertTo(adjMap, CV_8UC1, 1, 0);
-    }
-    else
-    {
-      mat.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
-    }
-    cv::applyColorMap(adjMap, adjMap, cv::COLORMAP_JET);
-    return adjMap;
-}
-
-cv::Mat draw_image_diff(const cv::Mat& img1,
-                        const cv::Mat& img2,
-                        const std::string& title="diff",
-                        bool show=false)
-{
-    cv::Mat diff;
-    cv::absdiff(img1, img2, diff);
-
-    // Apply the colormap
-    cv::Mat diff_color = draw_map(diff);
-
-    if(show)
-    {
-        cv::namedWindow(title, cv::WINDOW_NORMAL);
-        cv::imshow(title, diff_color);
-    }
-    return diff_color;
-}
 
 cv::Mat test(const std::function<void(cv::Mat&, cv::Mat&, cv::Mat&)>& angle_gradient,
              const std::string& func_name,
@@ -201,10 +162,12 @@ int main() {
 
     auto diff1 = draw_image_diff(custom_gradient_img,
                                  opencv_gradient_img,
+                                 true,
                                  "Custom Vs Opencv");
 
     auto diff2 = draw_image_diff(custom_gradient_img,
                                     pytlsd_gradient_img,
+                                 true,
                                     "Custom Vs Pytlsd");
 
     cv::Mat grad_opencv_color = draw_map(opencv_gradient_img, false);

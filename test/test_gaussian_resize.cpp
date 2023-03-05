@@ -6,6 +6,7 @@
 
 #include "lsd.h"
 #include "GaussianDownsampler.h"
+#include "test_utils.h"
 
 using namespace std::chrono;
 
@@ -46,52 +47,9 @@ cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_resize,
     return out_img;
 }
 
-cv::Mat draw_image_diff(cv::Mat& img1,
-                        cv::Mat& img2,
-                        const std::string& title="diff",
-                        bool show=false)
-{
-    cv::Mat diff;
-    cv::absdiff(img1, img2, diff);
-
-    // Normalize the difference with the min max to apply a colormap
-    double min, max;
-    cv::minMaxLoc(diff, &min, &max);
-    cv::Mat adjMap;
-    diff.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
-
-    // Apply the colormap
-    cv::Mat diff_color;
-    cv::applyColorMap(adjMap, diff_color, cv::COLORMAP_JET);
-
-    if(show)
-    {
-        cv::namedWindow(title, cv::WINDOW_NORMAL);
-        cv::imshow(title, diff_color);
-    }
-    return diff_color;
-}
-
-cv::Mat opencv_gaussian_resize(const cv::Mat& gray) {
-    // Test Opencv Gaussian Blur
-    cv::Mat opencv_gaussian_img, opencv_gaussian_img_resized;
-    auto scale = 0.8;
-    auto sigma = 0.6/0.8;
-    const double sprec = 3;
-    const auto h =  (int)(ceil(sigma * sqrt(2 * sprec * log(10.0))));
-    cv::Size ksize(1 + 2 * h, 1 + 2 * h); // kernel size
-    cv::GaussianBlur(gray, opencv_gaussian_img, ksize, sigma);
-
-    cv::Size new_size(int(floor(gray.cols * scale)),
-                      int(floor(gray.rows * scale)));
-    resize(opencv_gaussian_img, opencv_gaussian_img_resized, new_size, 0, 0, cv::INTER_LINEAR_EXACT);
-
-    return opencv_gaussian_img_resized;
-}
 
 cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 
-    auto scale = 0.8;
     auto new_width = (int) floor(gray.cols * scale);
     auto new_height = (int) floor(gray.rows * scale);
 
@@ -102,7 +60,7 @@ cv::Mat pytlsd_gaussian_resize(const cv::Mat& gray) {
 
     cv::Mat out_img;
     out_img = cv::Mat::zeros(new_height, new_width, CV_64F);
-    auto out_image_double = gaussian_sampler(image, scale, 0.6);
+    auto out_image_double = gaussian_sampler(image, scale, sigma_scale);
     out_img.data = reinterpret_cast<uchar *>(out_image_double->data);
 
     cv::Mat out_img_8u;
@@ -129,11 +87,11 @@ cv::Mat custom_gaussian_resize(const cv::Mat& gray) {
 
 int main() {
     auto num_test = 10;
-    auto opencv_gaussian_resize_img = test(opencv_gaussian_resize,
+    auto opencv_gaussian_resize_img = test(gaussian_resize,
                                            "opencv_gaussian_resize",
                                            num_test);
 
-    gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
+    gaussian_downsampler = std::make_unique<GaussianDownsampler>(scale, sigma_scale);
     auto sepconv_gaussian_resize_img = test(custom_gaussian_resize,
                                             "custom_gaussian_resize",
                                             num_test,
@@ -145,11 +103,13 @@ int main() {
 
     auto diff1 = draw_image_diff(pytlsd_gaussian_resize_img,
                                  opencv_gaussian_resize_img,
+                                 true,
                                  "Pytlsd Vs Opencv",
                                  true);
 
     auto diff2 = draw_image_diff(sepconv_gaussian_resize_img,
                                  opencv_gaussian_resize_img,
+                                 true,
                                  "SepConv Vs Opencv",
                                  true);
 

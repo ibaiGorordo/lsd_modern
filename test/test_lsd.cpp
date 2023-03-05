@@ -5,36 +5,13 @@
 
 #include "lsd.h"
 #include "LineSegmentDetector.h"
+#include "test_utils.h"
 
 using namespace std::chrono;
 using Line = std::pair<cv::Point2d, cv::Point2d>;
 
 cv::Ptr<cv::LineSegmentDetector> lsd_cv;
 std::unique_ptr<LineSegmentDetector> lsd_modern;
-
-cv::Mat draw_lines(cv::Mat& gray_img,
-                const std::vector<Line>& lines,
-                const std::string& title="lines",
-                bool show=false)
-{
-    cv::Mat color_img;
-    cv::cvtColor(gray_img, color_img, cv::COLOR_GRAY2BGR);
-    for (const auto& line : lines)
-    {
-        cv::line(color_img,
-                 line.first,
-                 line.second,
-                 cv::Scalar(0, 0, 255),
-                 2);
-    }
-
-    if(show)
-    {
-        cv::namedWindow(title, cv::WINDOW_NORMAL);
-        cv::imshow(title, color_img);
-    }
-    return color_img;
-}
 
 cv::Mat test(cv::Mat& gray_img,
              const std::function<std::vector<Line>(cv::Mat&)>& lsd,

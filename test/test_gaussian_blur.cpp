@@ -6,6 +6,7 @@
 
 #include "lsd.h"
 #include "GaussianDownsampler.h"
+#include "test_utils.h"
 
 using namespace std::chrono;
 
@@ -47,39 +48,9 @@ cv::Mat test(const std::function<cv::Mat(cv::Mat&)>& gaussian_blur,
     return out_img;
 }
 
-cv::Mat draw_image_diff(cv::Mat& img1,
-                        cv::Mat& img2,
-                        const std::string& title="diff",
-                        bool show=false)
-{
-    cv::Mat diff;
-    cv::absdiff(img1, img2, diff);
-
-    // Normalize the difference with the min max to apply a colormap
-    double min, max;
-    cv::minMaxLoc(diff, &min, &max);
-    cv::Mat adjMap;
-    diff.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
-
-    // Apply the colormap
-    cv::Mat diff_color;
-    cv::applyColorMap(adjMap, diff_color, cv::COLORMAP_JET);
-
-    if(show)
-    {
-        cv::namedWindow(title, cv::WINDOW_NORMAL);
-        cv::imshow(title, diff_color);
-    }
-    return diff_color;
-}
-
 cv::Mat opencv_gaussian_blur(const cv::Mat& gray) {
     // Test Opencv Gaussian Blur
     cv::Mat opencv_gaussian_img;
-    auto sigma = 0.6/0.8;
-    const double sprec = 3;
-    const auto h =  (int)(ceil(sigma * sqrt(2 * sprec * log(10.0))));
-    cv::Size ksize(1 + 2 * h, 1 + 2 * h); // kernel size
     cv::GaussianBlur(gray, opencv_gaussian_img, ksize, sigma);
 
     return opencv_gaussian_img;
@@ -123,7 +94,7 @@ int main() {
                                     "opencv_gaussian_blur",
                                     num_test);
 
-    gaussian_downsampler = std::make_unique<GaussianDownsampler>(0.8f, 0.6f);
+    gaussian_downsampler = std::make_unique<GaussianDownsampler>(scale, sigma_scale);
     auto sepconv_gaussian_img = test(sepconv_gaussian_blur,
                                      "sepconv_gaussian_blur",
                                      num_test);
@@ -134,11 +105,13 @@ int main() {
 
     auto diff1 = draw_image_diff(pytlsd_gaussian_img,
                                  opencv_gaussian_img,
+                                 true,
                                  "Pytlsd Vs Opencv",
                                  true);
 
     auto diff2 = draw_image_diff(sepconv_gaussian_img,
                                  opencv_gaussian_img,
+                                 true,
                                  "SepConv Vs Opencv",
                                  true);
 

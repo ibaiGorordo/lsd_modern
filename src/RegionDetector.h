@@ -7,21 +7,9 @@
 
 #include <vector>
 
+#include "NormPoint.h"
 #include "RegionPoint.h"
 #include "RegionRect.h"
-
-struct NormPoint {
-    int x;
-    int y;
-    uint16_t quant_norm{};
-
-    explicit NormPoint(int x, int y, unsigned int quant_norm) : x(x), y(y), quant_norm(quant_norm) {}
-
-    bool operator > (const NormPoint &other) const
-    {
-        return quant_norm > other.quant_norm;
-    }
-};
 
 
 class RegionDetector {
@@ -42,14 +30,10 @@ private:
 
     double angTh{};
     double angThNorm{};
-    double densityTh{};
 
-    static constexpr uint16_t numBins = 1024*52; // 52 ~= 256/5.22 (gradient threshold)
-    static constexpr uint16_t maxGrad = 256;
-    static constexpr double quantCoeff = (double) numBins / maxGrad;
-    static constexpr double refineCoeffSq = 0.75*0.75;
+    static constexpr double refineCoeffSq = 0.75*0.75;    double densityTh{};
+
     std::vector<NormPoint> sorted_pixels;
-
     std::vector<RegionPoint> region_points;
     double regDx{};
     double regDy{};
@@ -71,7 +55,6 @@ private:
     void refineRegion();
     void regionGrow(int x, int y, double angle_threrehold);
     void calculateRect();
-    void getSortedPixels();
     void checkNewImgSize(int width, int height);
     void resetRegion();
     void registerPoint(int x, int y);

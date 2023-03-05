@@ -10,78 +10,18 @@
 
 #include "GradientCalculator.h"
 #include "RegionDetector.h"
+#include "test_utils.h"
 
 using namespace std::chrono;
-
-struct normPoint
-{
-    cv::Point2i p;
-    int norm{};
-};
-
-static inline bool compare_norm( const normPoint& n1, const normPoint& n2 )
-{
-    return (n1.norm > n2.norm);
-}
 
 
 std::unique_ptr<GradientCalculator> gradientCalculator;
 std::unique_ptr<RegionDetector> regionDetector;
-std::vector<normPoint> ordered_points;
+std::vector<NormPoint> ordered_points;
 cv::Ptr<cv::LineSegmentDetector> lsd_cv;
 cv::Mat magnitude_img, ang_img, bad_pixels_img, resized_img;
 cv::Mat gray_img;
 
-cv::Mat draw_map(const cv::Mat& mat, bool use_min=true)
-{
-    cv::Mat adjMap;
-    double min, max;
-    cv::minMaxLoc(mat, &min, &max);
-    if (!use_min) min = 0;
-    mat.convertTo(adjMap, CV_8UC1, 255 / (max-min), -min);
-    cv::applyColorMap(adjMap, adjMap, cv::COLORMAP_JET);
-    return adjMap;
-}
-
-cv::Mat gaussian_resize(const cv::Mat& input_img,
-                        int ksize = 7,
-                        double sigma = 0.6/0.8,
-                        double scale = 0.8)
-{
-    cv::Mat res_img;
-    cv::GaussianBlur(input_img, res_img,
-                     cv::Size(ksize,ksize), sigma);
-
-    cv::Size new_size(int(ceil(input_img.cols * scale)),
-                      int(ceil(input_img.rows * scale)));
-    resize(res_img, res_img, new_size, 0, 0, cv::INTER_LINEAR_EXACT);
-
-    return res_img;
-}
-
-
-void calculate_gradient()
-{
-    auto threshold = 5.2262518595055063;
-    if(gradientCalculator == nullptr)
-    {
-        gradientCalculator = std::make_unique<GradientCalculator>(threshold);
-    }
-
-    magnitude_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, 0.0);
-    ang_img = cv::Mat(resized_img.rows, resized_img.cols, CV_64F, -1024.0);
-    bad_pixels_img = cv::Mat(resized_img.rows, resized_img.cols, CV_8U, 0.0);
-
-    auto *imagePtr = reinterpret_cast<unsigned char *>(resized_img.data);
-    auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);
-    auto *anglesPtr = reinterpret_cast<double *>(ang_img.data);
-    auto *bad_pixelsPtr = reinterpret_cast<unsigned char *>(bad_pixels_img.data);
-
-    gradientCalculator->calculateGradients(imagePtr,
-                                           resized_img.cols, resized_img.rows,
-                                           anglesPtr, magnitudesPtr,
-                                           bad_pixelsPtr);
-}
 
 void test(const std::function<void()>& region_detect,
           const std::string& func_name,
@@ -91,12 +31,15 @@ void test(const std::function<void()>& region_detect,
                                   cv::IMREAD_GRAYSCALE);
 
     resized_img = gaussian_resize(gray_img);
+    calculate_gradient(gradientCalculator.get(),
+                       resized_img,
+                       magnitude_img,
+                       ang_img,
+                       bad_pixels_img);
 
     long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
     {
-        calculate_gradient();
-
         auto start = high_resolution_clock::now();
         region_detect();
         auto end = high_resolution_clock::now();
@@ -136,24 +79,20 @@ void test_pytlsd_region_detector()
     // Compute histogram of gradient values
     ordered_points.clear();
     ordered_points.reserve(resized_img.rows * resized_img.cols);
-    int n_bins = 1024;
     double bin_coef = (max_grad > 0) ? double(n_bins - 1) / max_grad : 0; // If all image is smooth, max_grad <= 0
     for(int y = 0; y < resized_img.rows - 1; ++y)
     {
         const double* modgrad_row = magnitude_img.ptr<double>(y);
         for(int x = 0; x < resized_img.cols - 1; ++x)
         {
-
-            normPoint _point;
             int i = int(modgrad_row[x] * bin_coef);
-            _point.p = cv::Point(x, y);
-            _point.norm = i;
-            ordered_points.push_back(_point);
+            ordered_points.emplace_back(x, y, i);
         }
     }
 
     // Sort
-    std::sort(ordered_points.begin(), ordered_points.end(), compare_norm);
+    std::sort(ordered_points.begin(), ordered_points.end(), std::greater<>());
+    printf("First point: %d %d\n", ordered_points[0].x, ordered_points[0].y);
 
     auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);
     auto *anglesPtr = reinterpret_cast<double *>(ang_img.data);
@@ -163,14 +102,10 @@ void test_pytlsd_region_detector()
 
     reg = (struct point *) calloc( (size_t) (ang_img.cols * ang_img.rows), sizeof(struct point) );
     int reg_size;
-    double reg_angle, prec;
+    double reg_angle;
     struct rect rec;
 
     /* angle tolerance */
-    auto ang_th = 22.5;
-    auto density_th = 0.7;
-    auto p = ang_th / 180.0;
-    prec = M_PI * ang_th / 180.0;
 
     auto logNT = 5.0 * ( log10( (double) ang_img.cols ) + log10( (double) ang_img.rows ) ) / 2.0;
     auto min_reg_size = (int) (-logNT / log10(p));
@@ -179,7 +114,7 @@ void test_pytlsd_region_detector()
     auto region_count = 0;
     // Search for line segments
     for(size_t i = 0, points_size = ordered_points.size(); i < points_size; ++i) {
-        const cv::Point2i &point = ordered_points[i].p;
+        const cv::Point2i &point{ordered_points[i].x, ordered_points[i].y};
 
         if (bad_pixels_img.data[point.x + point.y * bad_pixels_img.cols] == 1)
             continue;
@@ -217,8 +152,8 @@ void test_opencv_region_detector()
 int main() {
 
     auto num_test = 1;
-    auto ang_thres = 22.5;
     regionDetector = std::make_unique<RegionDetector>(ang_thres);
+    gradientCalculator = std::make_unique<GradientCalculator>(gradient_threshold);
 
     lsd_cv = cv::createLineSegmentDetector(cv::LSD_REFINE_STD);
 
