@@ -73,37 +73,7 @@ void RegionDetector::refineRegion() {
     if(regDensity >= densityTh || !regionFound) return;
 
     // Try 2: Reduce region radius
-
-    // Compute the region radius
-    auto xCenter = static_cast<double>(region_points[0].x);
-    auto yCenter = static_cast<double>(region_points[0].y);
-    auto radSq1 = point_dist_squared(xCenter, yCenter, regionRect.x1, regionRect.y1);
-    auto radSq2 = point_dist_squared(xCenter, yCenter, regionRect.x2, regionRect.y2);
-    auto radSq = radSq1 > radSq2 ? radSq1 : radSq2;
-
-    while(regDensity < densityTh)
-    {
-        // Reduce the region radius
-        radSq *= refineCoeffSq;
-
-        // Set points outside the radius to as not valid
-        for(auto& point : region_points)
-        {
-            if(!point.valid) continue;
-
-            if (point_dist_squared(xCenter, yCenter, point.x, point.y) <= radSq)
-                continue;
-
-            point.valid = false;
-            regionSize--;
-            resetPoint(point);
-        }
-
-        // Check min region size 2
-        if(region_points.size() < 2) return;
-
-        calculateRect();
-    }
+    reduceRegionRadius();
 }
 
 void RegionDetector::calculateRect() {
@@ -148,6 +118,39 @@ void RegionDetector::regionGrow(int x, int y, double angle_threrehold) {
                 registerPoint(x_neigh, y_neigh);
             }
         }
+    }
+}
+
+void RegionDetector::reduceRegionRadius() {
+    // Compute the region radius
+    auto xCenter = static_cast<double>(region_points[0].x);
+    auto yCenter = static_cast<double>(region_points[0].y);
+    auto radSq1 = point_dist_squared(xCenter, yCenter, regionRect.x1, regionRect.y1);
+    auto radSq2 = point_dist_squared(xCenter, yCenter, regionRect.x2, regionRect.y2);
+    auto radSq = radSq1 > radSq2 ? radSq1 : radSq2;
+
+    while(regDensity < densityTh)
+    {
+        // Reduce the region radius
+        radSq *= refineCoeffSq;
+
+        // Set points outside the radius to as not valid
+        for(auto& point : region_points)
+        {
+            if(!point.valid) continue;
+
+            if (point_dist_squared(xCenter, yCenter, point.x, point.y) <= radSq)
+                continue;
+
+            point.valid = false;
+            regionSize--;
+            resetPoint(point);
+        }
+
+        // Check min region size 2
+        if(region_points.size() < 2) return;
+
+        calculateRect();
     }
 }
 

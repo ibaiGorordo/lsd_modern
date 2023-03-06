@@ -66,6 +66,7 @@ private:
     static constexpr int maxLimit(int x, int max) { return x == max-1 ? max-1 : x + 1; }
 
 
+    void reduceRegionRadius();
 };
 
 
