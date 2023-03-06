@@ -31,11 +31,11 @@ void test(const std::function<void()>& region_detect,
                                   cv::IMREAD_GRAYSCALE);
 
     resized_img = gaussian_resize(gray_img);
-    calculate_gradient(gradientCalculator.get(),
-                       resized_img,
-                       magnitude_img,
-                       ang_img,
-                       bad_pixels_img);
+    calculate_gradient_opencv(gradientCalculator.get(),
+                              resized_img,
+                              magnitude_img,
+                              ang_img,
+                              bad_pixels_img);
 
     long long total_time = 0;
     for (int i = 0; i < num_tests; ++i)
@@ -65,33 +65,9 @@ void test_pytlsd_region_detector()
     image_char used;
     image_double angles, modgrad;
 
-    auto max_grad = 0.0;
-    for(int y = 0; y < resized_img.rows; ++y)
-    {
-        const double* modgrad_row = magnitude_img.ptr<double>(y);
-        for(int x = 0; x < resized_img.cols; ++x)
-        {
-            if(modgrad_row[x] > max_grad)
-                max_grad = modgrad_row[x];
-        }
-    }
-
-    // Compute histogram of gradient values
-    ordered_points.clear();
-    ordered_points.reserve(resized_img.rows * resized_img.cols);
-    double bin_coef = (max_grad > 0) ? double(n_bins - 1) / max_grad : 0; // If all image is smooth, max_grad <= 0
-    for(int y = 0; y < resized_img.rows - 1; ++y)
-    {
-        const double* modgrad_row = magnitude_img.ptr<double>(y);
-        for(int x = 0; x < resized_img.cols - 1; ++x)
-        {
-            int i = int(modgrad_row[x] * bin_coef);
-            ordered_points.emplace_back(x, y, i);
-        }
-    }
-
-    // Sort
-    std::sort(ordered_points.begin(), ordered_points.end(), std::greater<>());
+    sort_pixels_opencv(magnitude_img,
+                       bad_pixels_img,
+                       ordered_points);
     printf("First point: %d %d\n", ordered_points[0].x, ordered_points[0].y);
 
     auto *magnitudesPtr = reinterpret_cast<double *>(magnitude_img.data);

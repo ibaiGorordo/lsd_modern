@@ -11,15 +11,13 @@ cv::Mat gaussian_resize(const cv::Mat& input_img)
     cv::GaussianBlur(input_img, res_img,
                      ksize, sigma);
 
-    cv::Size new_size(int(floor(input_img.cols * scale)),
-                      int(floor(input_img.rows * scale)));
-    resize(res_img, res_img, new_size, 0, 0, cv::INTER_LINEAR_EXACT);
+    resize(res_img, res_img, cv::Size(), scale, scale, cv::INTER_LINEAR_EXACT);
 
     return res_img;
 }
 
 
-void calculate_gradient(GradientCalculator* gradientCalculator,
+void calculate_gradient_opencv(GradientCalculator* gradientCalculator,
                         const cv::Mat& resized_img,
                         cv::Mat& magnitude_img,
                         cv::Mat& ang_img,
@@ -38,6 +36,42 @@ void calculate_gradient(GradientCalculator* gradientCalculator,
                                            resized_img.cols, resized_img.rows,
                                            anglesPtr, magnitudesPtr,
                                            bad_pixelsPtr);
+}
+
+void sort_pixels_opencv(const cv::Mat& magnitude_img,
+                        const cv::Mat& bad_pixels_img,
+                        std::vector<NormPoint>& ordered_points) {
+
+    auto max_grad = calculate_max_gradient(magnitude_img, bad_pixels_img);
+    // Compute histogram of gradient values
+    double bin_coef = (max_grad > 0) ? double(n_bins - 1) / max_grad : 0; // If all image is smooth, max_grad <= 0
+    for(int y = 0; y < magnitude_img.rows - 1; ++y)
+    {
+        const auto* modgrad_row = magnitude_img.ptr<double>(y);
+        for(int x = 0; x < magnitude_img.cols - 1; ++x)
+        {
+            int quantNorm = int(modgrad_row[x] * bin_coef);
+            ordered_points.emplace_back(x, y, quantNorm);
+        }
+    }
+
+    // Sort
+    std::sort(ordered_points.begin(), ordered_points.end(), std::greater<>());
+}
+
+double calculate_max_gradient(const cv::Mat& magnitude_img,
+                              const cv::Mat& bad_pixels_img) {
+
+    double max_grad = 0.0;
+    for (int i = 0; i < magnitude_img.rows; i++) {
+        for (int j = 0; j < magnitude_img.cols; j++) {
+            if (bad_pixels_img.at<unsigned char>(i, j) == 1) continue;
+
+            double grad = magnitude_img.at<double>(i, j);
+            if (grad > max_grad) max_grad = grad;
+        }
+    }
+    return max_grad;
 }
 
 

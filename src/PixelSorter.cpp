@@ -28,5 +28,4 @@ void PixelSorter::sort(std::vector<NormPoint>& sorted_pixels,
 
     // Sort in descending order
     std::sort(sorted_pixels.begin(), sorted_pixels.end(), std::greater<>());
-    printf("First point: %d %d\n", sorted_pixels[0].x, sorted_pixels[0].y);
 }

@@ -8,6 +8,7 @@
 #include "opencv2/opencv.hpp"
 
 #include "GradientCalculator.h"
+#include "NormPoint.h"
 
 constexpr auto quant = 2.0;
 constexpr auto n_bins = 1024;
@@ -28,11 +29,18 @@ const cv::Size ksize(1 + 2 * h, 1 + 2 * h); // kernel size
 
 cv::Mat gaussian_resize(const cv::Mat& input_img);
 
-void calculate_gradient(GradientCalculator* gradientCalculator,
+void calculate_gradient_opencv(GradientCalculator* gradientCalculator,
                         const cv::Mat& resized_img,
                         cv::Mat& magnitude_img,
                         cv::Mat& ang_img,
                         cv::Mat& bad_pixels_img);
+
+void sort_pixels_opencv(const cv::Mat& magnitude_img,
+                        const cv::Mat& bad_pixels_img,
+                        std::vector<NormPoint>& orderer_points);
+
+double calculate_max_gradient(const cv::Mat& magnitude_img,
+                              const cv::Mat& bad_pixels_img);
 
 cv::Mat draw_map(const cv::Mat& mat, bool use_min=true);
 
