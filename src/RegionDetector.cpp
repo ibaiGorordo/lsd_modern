@@ -154,8 +154,8 @@ void RegionDetector::regionGrow(int x, int y, double angle_threrehold) {
 double RegionDetector::calculateRegionStdAngle() {
     RegionPoint seedPoint = region_points[0];
     const auto seed_angle = seedPoint.angle;
-    const auto seed_x = 463;//seedPoint.x;
-    const auto seed_y = 401;//seedPoint.y;
+    const auto seed_x = seedPoint.x;
+    const auto seed_y = seedPoint.y;
 
     double sum_angle = 0;
     double squared_sum_angle = 0;
