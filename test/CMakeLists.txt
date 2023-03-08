@@ -33,6 +33,13 @@ add_executable(test_region_detection
 target_link_libraries(test_region_detection PRIVATE ${OpenCV_LIBS}  ${lib_name})
 target_include_directories(test_region_detection PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pytlsd/src)
 
+add_executable(test_rect_nfa
+        test_rect_nfa.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../pytlsd/src/lsd.cpp test_utils.cpp test_utils.h)
+
+target_link_libraries(test_rect_nfa PRIVATE ${OpenCV_LIBS}  ${lib_name})
+target_include_directories(test_rect_nfa PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pytlsd/src)
+
 add_executable(test_lsd
                 test_lsd.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/../pytlsd/src/lsd.cpp test_utils.cpp test_utils.h)
